@@ -11,28 +11,19 @@ import (
 var homeTemplate = template.Must(template.New("").Parse(`<!DOCTYPE html>
 <html>
 <head>
-<meta charset="utf-8">
-<script>
-window.addEventListener("load", function(evt) {
-	var ws = new WebSocket("{{.}}");
-	window.ws = ws;
-	ws.onopen = function(evt) {
-		console.log("OPEN");
-	}
-	ws.onclose = function(evt) {
-		console.log("CLOSE");
-	}
-	ws.onmessage = function(evt) {
-		console.log("RESPONSE: " + evt.data);
-	}
-	ws.onerror = function(evt) {
-		console.log("ERROR: " + evt.data);
-	}
-	//ws.close();
-});
-</script>
+<title>HANABI</title>
+<link href="/static/css/main.css" rel="stylesheet">
 </head>
+<meta charset="utf-8">
 <body>
+<div id="tick"></div>
+<div id="canvas"></div>
+<script>
+window.args = {
+	"ws_url": {{.}},
+}
+</script>
+<script src="/static/js/client.js"></script>
 </body>
 </html>
 `))
@@ -42,6 +33,7 @@ var upgrader = websocket.Upgrader{}
 var newClients = make(chan *websocket.Conn, 10)
 
 func serveHome(w http.ResponseWriter, r *http.Request) {
+	log.Println("aaaa")
 	if r.URL.Path != "/" {
 		http.Error(w, "Not found", 404)
 		return
@@ -51,7 +43,7 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//w.Header().Set("Content-Type", "text/html")
+	w.Header().Set("Content-Type", "text/html")
 	homeTemplate.Execute(w, "ws://"+r.Host+"/ws")
 
 	//http.ServeFile(w, r, "home.html")
@@ -87,7 +79,11 @@ func RunServerAndGame() {
 	flag.Parse()
 	go gameLoop()
 
+	fs := http.FileServer(http.Dir("static"))
 	http.HandleFunc("/", serveHome)
 	http.HandleFunc("/ws", serveWs)
+	http.Handle("/static/", http.StripPrefix("/static/", fs))
+
+	//http.Handle("/static", fs)
 	log.Fatal(http.ListenAndServe(*addr, nil))
 }

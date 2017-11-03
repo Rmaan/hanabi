@@ -6,19 +6,26 @@ import (
 	"github.com/gorilla/websocket"
 	"log"
 	"encoding/json"
+	"math"
 )
 
-
-var allObjects = make([]MovingObject, 0)
+var allObjects = make([]*MovingObject, 0)
 var clientList = make([]*websocket.Conn, 0)
+
+const maxWidth = 1000
+const maxHeight = 1000
 
 type MovingObject struct {
 	X, Y int16
 }
 
+func (m *MovingObject) setPosition(tickNumber int) {
+	m.Y = 10
+	m.X = 100 + int16(20*math.Sin(math.Pi*2*float64(tickNumber)/50))
+}
 
 type Packet struct {
-	AllObjects []MovingObject
+	AllObjects []*MovingObject
 	TickNumber int
 }
 
@@ -36,6 +43,9 @@ func doTick(tickNumber int) {
 	//	allObjects: allObjects,
 	//	tickNumber: tickNumber,
 	//})
+	for _, obj := range allObjects {
+		obj.setPosition(tickNumber)
+	}
 	data, err := json.Marshal(Packet{
 		AllObjects: allObjects,
 		TickNumber: tickNumber,
@@ -43,7 +53,6 @@ func doTick(tickNumber int) {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("%s\n", data)
 	for _, ws := range clientList {
 		err = ws.WriteMessage(websocket.TextMessage, data)
 		if err != nil {
@@ -52,11 +61,11 @@ func doTick(tickNumber int) {
 	}
 }
 
-
 func gameLoop() {
-	tickPerSecond := 2
+	tickPerSecond := 10
 	tickInterval := time.Duration(time.Second.Nanoseconds() / int64(tickPerSecond))
 	fmt.Println("Tick per sec", tickPerSecond, "each", tickInterval)
+	allObjects = append(allObjects, &MovingObject{})
 
 	for tickNumber := 0; ; tickNumber++ {
 		tickBegin := time.Now()

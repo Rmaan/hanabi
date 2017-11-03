@@ -1,0 +1,14 @@
+#canvas {
+    width: 1000px;
+    height: 1000px;
+    border: 1px solid red;
+    position: relative;
+}
+
+.block {
+    width: 10px;
+    height: 10px;
+    position: absolute;
+    background: black;
+    border-radius: 25%;
+}
