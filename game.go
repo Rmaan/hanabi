@@ -15,15 +15,15 @@ var clientList = make([]*websocket.Conn, 0)
 var newCommands = make(chan playerCommand, 100)
 
 type playerCommand struct {
-	ws *websocket.Conn
+	ws   *websocket.Conn
 	data []byte
 }
 
-const maxWidth = 500
-const maxHeight = 280
+const maxWidth = 1000
+const maxHeight = 560
 
 type BaseObject struct {
-	X, Y int16
+	X, Y          int16
 	Height, Width int16
 }
 
@@ -68,6 +68,14 @@ type StaticObject struct {
 func (o *StaticObject) tick(int) {
 }
 
+type Card struct {
+	BaseObject
+	SpiritId int
+}
+
+func (c *Card) tick(tickNumber int) {
+}
+
 type Packet struct {
 	AllObjects []HasShape
 	TickNumber int
@@ -109,15 +117,33 @@ func doTick(tickNumber int) {
 }
 
 func processCommands(tickNumber int) {
+	command := struct {
+		Type   string          `json:"type"`
+		Params json.RawMessage `json:"params"`
+	}{}
+
+	moveCommand := struct {
+		X, Y, Target int16
+	}{}
+
 	for len(newCommands) > 0 {
-		c := <- newCommands
-		res := make(map[string]interface{})
-		err := json.Unmarshal(c.data, &res)
+		c := <-newCommands
+		err := json.Unmarshal(c.data, &command)
 		if err != nil {
 			log.Printf("Invalid msg received from %v", c.ws)
 			continue
 		}
-		log.Println(res)
+		if command.Type == "move" {
+			err = json.Unmarshal(command.Params, &moveCommand)
+			if err != nil {
+				log.Printf("err in move %v `%s`", err, command.Params)
+				continue
+			}
+			log.Printf("move command %+v", moveCommand)
+			obj := allObjects[2].(*Card)
+			obj.X = moveCommand.X
+			obj.Y = moveCommand.Y
+		}
 	}
 }
 
@@ -148,8 +174,10 @@ func gameLoop() {
 	tickPerSecond := 2
 	tickInterval := time.Duration(time.Second.Nanoseconds() / int64(tickPerSecond))
 	fmt.Println("Tick per sec", tickPerSecond, "each", tickInterval)
-	allObjects = append(allObjects, &StaticObject{BaseObject{X: 100, Y: 100, Width: 10, Height:10}})
+	allObjects = append(allObjects, &StaticObject{BaseObject{X: 100, Y: 100, Width: 10, Height: 10}})
 	allObjects = append(allObjects, &RotatingObject{BaseObject{Height: 2, Width: 2}, 100, 100, 50})
+	allObjects = append(allObjects, &Card{BaseObject{X: 300, Y: 100, Width: 100, Height: 140}, 2})
+	allObjects = append(allObjects, &Card{BaseObject{X: 300, Y: 300, Width: 100, Height: 140}, 32})
 
 	for tickNumber := 0; ; tickNumber++ {
 		tickBegin := time.Now()
@@ -162,7 +190,7 @@ func gameLoop() {
 			fmt.Printf("Tick %v len %v sleeping for %v\n", tickNumber, duration, remaining)
 			time.Sleep(remaining)
 		} else {
-			fmt.Errorf("Tick was too long!! %v\n", remaining)
+			fmt.Printf("Tick was too long!! %v\n", remaining)
 		}
 	}
 }
