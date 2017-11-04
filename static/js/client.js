@@ -1,4 +1,4 @@
-window.addEventListener("load", function(evt) {
+window.addEventListener("load", function() {
     var $canvas = document.getElementById('canvas');
     var $tick = document.getElementById('tick');
 
@@ -6,6 +6,7 @@ window.addEventListener("load", function(evt) {
     function drawWorld(world) {
         if (world.TickNumber === undefined)
             return;
+        console.log('drawing', world)
         x++
 
         $tick.textContent = world.TickNumber;
@@ -16,24 +17,31 @@ window.addEventListener("load", function(evt) {
             $ch.className = 'block';
             $ch.style.top = obj.Y + 'px';
             $ch.style.left = obj.X + 'px';
+            $ch.style.width = obj.Width + 'px';
+            $ch.style.height = obj.Height + 'px';
             $canvas.appendChild($ch);
         });
     }
 
     var ws = new WebSocket(window.args.ws_url);
-    window.ws = ws;
-    ws.onopen = function(evt) {
-        console.log("OPEN");
+    ws.onopen = function(e) {
+        console.log("WS open");
     }
-    ws.onclose = function(evt) {
-        console.log("CLOSE");
+    ws.onclose = function(e) {
+        console.log("WS close");
     }
-    ws.onmessage = function(evt) {
-        console.log("RESPONSE: " + evt.data);
-        drawWorld(JSON.parse(evt.data));
+    ws.onmessage = function(e) {
+        // console.log("RESPONSE: " + world);
+        var reader = new FileReader()
+        reader.onload = e => {
+            var buffer = new Uint8Array(e.target.result)
+            drawWorld(msgpack.decode(buffer))
+        }
+        reader.readAsArrayBuffer(e.data)
     }
-    ws.onerror = function(evt) {
-        console.log("ERROR: " + evt.data);
+    ws.onerror = function(e) {
+        console.log("WS err: " + e.data);
     }
-    //ws.close();
+
+    window.ws = ws
 });
