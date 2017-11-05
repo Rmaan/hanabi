@@ -1,6 +1,6 @@
 window.addEventListener("load", function() {
     var $canvas = document.getElementById('canvas');
-    var $tick = document.getElementById('tick');
+    var $status = document.getElementById('status');
     var $debug = document.getElementById('debug');
     // Browsers doesn't support passing data to ondragover (for a reason I don't know) this is a simple workaround
     // assuming there is only one drag (no multi touch).
@@ -19,7 +19,6 @@ window.addEventListener("load", function() {
     $canvas.ondragover = ev => {
         ev.preventDefault()
         ev.dataTransfer.dropEffect = "move"
-        console.log('over', ev)
         var commandParams = {
             'TargetId': dragging.objectBeingDragged,
             'X': ev.clientX - $canvas.getClientRects()[0].x - dragging.gripOffsetX,
@@ -37,7 +36,7 @@ window.addEventListener("load", function() {
         // console.log('drawing', world)
         x++
 
-        $tick.textContent = world.TickNumber;
+        $status.textContent = world.TickNumber;
         $canvas.innerHTML = '';
 
         world.AllObjects.forEach(obj => {
@@ -71,10 +70,10 @@ window.addEventListener("load", function() {
 
     var ws = new WebSocket(window.args.ws_url);
     ws.onopen = function(e) {
-        console.log("WS open");
+        $status.textContent = "WS open"
     }
     ws.onclose = function(e) {
-        console.log("WS close");
+        $status.textContent = "WS closed :("
     }
     ws.onmessage = function(e) {
         // console.log("RESPONSE: " + world);

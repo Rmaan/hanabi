@@ -5,7 +5,6 @@ import (
 	"time"
 	"github.com/gorilla/websocket"
 	"log"
-	"math"
 	"github.com/vmihailenco/msgpack"
 	"encoding/json"
 )
@@ -22,60 +21,6 @@ type playerCommand struct {
 const maxWidth = 1000
 const maxHeight = 560
 
-type BaseObject struct {
-	Id int16
-	X, Y          int16
-	Height, Width int16
-}
-
-func (o *BaseObject) getWidth() int16 {
-	return o.Width
-}
-
-func (o *BaseObject) getHeight() int16 {
-	return o.Height
-}
-
-func (o *BaseObject) getX() int16 {
-	return o.X
-}
-
-func (o *BaseObject) getY() int16 {
-	return o.Y
-}
-
-type HasShape interface {
-	tick(tickNumber int)
-	getX() int16
-	getY() int16
-	getWidth() int16
-	getHeight() int16
-}
-
-type RotatingObject struct {
-	BaseObject
-	centerX, centerY, radius int16
-}
-
-func (o *RotatingObject) tick(tickNumber int) {
-	o.Y = o.centerX + int16(float64(o.radius)*math.Cos(math.Pi*2*float64(tickNumber)/50))
-	o.X = o.centerY + int16(float64(o.radius)*math.Sin(math.Pi*2*float64(tickNumber)/50))
-}
-
-type StaticObject struct {
-	BaseObject
-}
-
-func (o *StaticObject) tick(int) {
-}
-
-type Card struct {
-	BaseObject
-	SpiritId int
-}
-
-func (c *Card) tick(tickNumber int) {
-}
 
 type Packet struct {
 	AllObjects []HasShape
@@ -197,7 +142,7 @@ func gameLoop(tickPerSecond int) {
 		duration := time.Since(tickBegin)
 		remaining := time.Duration(tickInterval.Nanoseconds() - duration.Nanoseconds())
 		if remaining > 0 {
-			fmt.Printf("Tick %v len %v sleeping for %v\n", tickNumber, duration, remaining)
+			fmt.Printf("Tick %6v done in %10v\n", tickNumber, duration)
 			time.Sleep(remaining)
 		} else {
 			fmt.Printf("Tick was too long!! %v\n", remaining)
