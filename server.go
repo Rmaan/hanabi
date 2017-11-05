@@ -17,6 +17,7 @@ var homeTemplate = template.Must(template.New("").Parse(`<!DOCTYPE html>
 <meta charset="utf-8">
 <body>
 <div id="tick"></div>
+<div id="debug"></div>
 <div id="canvas"></div>
 <script>
 window.args = {

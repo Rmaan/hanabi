@@ -17,3 +17,7 @@
 .block.spirit {
     background-size: cover;
 }
+
+#debug {
+    font-family: monospace;
+}

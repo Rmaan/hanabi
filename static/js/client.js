@@ -1,26 +1,32 @@
 window.addEventListener("load", function() {
     var $canvas = document.getElementById('canvas');
     var $tick = document.getElementById('tick');
+    var $debug = document.getElementById('debug');
     // Browsers doesn't support passing data to ondragover (for a reason I don't know) this is a simple workaround
     // assuming there is only one drag (no multi touch).
-    var spiritBeingDragged
+    var dragging = {
+        objectBeingDragged: null,
+        gripOffsetX: 0,
+        gripOffsetY: 0,
+    }
 
     $canvas.ondrop = ev => {
         // ev.preventDefault()
         console.log('drop', ev,  ev.dataTransfer.getData("text"))
     }
 
+    // TODO throttle these events
     $canvas.ondragover = ev => {
         ev.preventDefault()
         ev.dataTransfer.dropEffect = "move"
         console.log('over', ev)
         var commandParams = {
-            'Target': spiritBeingDragged,
-            'X': ev.clientX,
-            'Y': ev.clientY,
+            'TargetId': dragging.objectBeingDragged,
+            'X': ev.clientX - $canvas.getClientRects()[0].x - dragging.gripOffsetX,
+            'Y': ev.clientY - $canvas.getClientRects()[0].y - dragging.gripOffsetY,
         }
         var data = JSON.stringify({type: 'move', params: commandParams})
-        console.log('sending', data)
+        $debug.innerText = data;
         ws.send(data)
     }
 
@@ -28,7 +34,7 @@ window.addEventListener("load", function() {
     function drawWorld(world) {
         if (world.TickNumber === undefined)
             return;
-        console.log('drawing', world)
+        // console.log('drawing', world)
         x++
 
         $tick.textContent = world.TickNumber;
@@ -46,11 +52,15 @@ window.addEventListener("load", function() {
                 $ch.style.backgroundImage = 'url(/static/img/cards/' + obj.SpiritId + '.png)'
                 $ch.draggable = true
                 $ch.ondragstart = ev => {
-                    spiritBeingDragged = obj.SpiritId
-                    console.log('drag start', ev)
+                    dragging = {
+                        objectBeingDragged: obj.Id,
+                        gripOffsetX: ev.clientX - ev.target.getClientRects()[0].x,
+                        gripOffsetY: ev.clientY - ev.target.getClientRects()[0].y,
+                    }
+                    console.log('drag start', dragging)
                 }
                 $ch.ondragend = ev => {
-                    spiritBeingDragged = null
+                    dragging.objectBeingDragged = null
                 }
             } else {
                 $ch.classList.add('no-spirit')

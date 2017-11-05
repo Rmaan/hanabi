@@ -23,6 +23,7 @@ const maxWidth = 1000
 const maxHeight = 560
 
 type BaseObject struct {
+	Id int16
 	X, Y          int16
 	Height, Width int16
 }
@@ -124,6 +125,7 @@ func processCommands(tickNumber int) {
 
 	moveCommand := struct {
 		X, Y, Target int16
+		TargetId uint16
 	}{}
 
 	for len(newCommands) > 0 {
@@ -140,7 +142,11 @@ func processCommands(tickNumber int) {
 				continue
 			}
 			log.Printf("move command %+v", moveCommand)
-			obj := allObjects[2].(*Card)
+			if int(moveCommand.TargetId) > len(allObjects) || moveCommand.TargetId == 0 {
+				log.Printf("bad obj id to move %v", moveCommand.TargetId)
+				continue
+			}
+			obj := allObjects[moveCommand.TargetId - 1].(*Card)
 			obj.X = moveCommand.X
 			obj.Y = moveCommand.Y
 		}
@@ -174,10 +180,15 @@ func gameLoop() {
 	tickPerSecond := 2
 	tickInterval := time.Duration(time.Second.Nanoseconds() / int64(tickPerSecond))
 	fmt.Println("Tick per sec", tickPerSecond, "each", tickInterval)
-	allObjects = append(allObjects, &StaticObject{BaseObject{X: 100, Y: 100, Width: 10, Height: 10}})
-	allObjects = append(allObjects, &RotatingObject{BaseObject{Height: 2, Width: 2}, 100, 100, 50})
-	allObjects = append(allObjects, &Card{BaseObject{X: 300, Y: 100, Width: 100, Height: 140}, 2})
-	allObjects = append(allObjects, &Card{BaseObject{X: 300, Y: 300, Width: 100, Height: 140}, 32})
+
+	nextId := func () int16 {
+		return int16(len(allObjects) + 1)
+	}
+
+	allObjects = append(allObjects, &StaticObject{BaseObject{Id: nextId(), X: 100, Y: 100, Width: 10, Height: 10}})
+	allObjects = append(allObjects, &RotatingObject{BaseObject{Id: nextId(), Height: 2, Width: 2}, 100, 100, 50})
+	allObjects = append(allObjects, &Card{BaseObject{Id: nextId(), X: 300, Y: 100, Width: 100, Height: 140}, 2})
+	allObjects = append(allObjects, &Card{BaseObject{Id: nextId(), X: 300, Y: 300, Width: 100, Height: 140}, 32})
 
 	for tickNumber := 0; ; tickNumber++ {
 		tickBegin := time.Now()
