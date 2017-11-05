@@ -176,8 +176,7 @@ func broadcastWorld(tickNumber int) {
 }
 
 // The game run in a single-thread environment. Other goroutines write to channels to interoperate with game engine.
-func gameLoop() {
-	tickPerSecond := 2
+func gameLoop(tickPerSecond int) {
 	tickInterval := time.Duration(time.Second.Nanoseconds() / int64(tickPerSecond))
 	fmt.Println("Tick per sec", tickPerSecond, "each", tickInterval)
 

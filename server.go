@@ -76,8 +76,9 @@ func NoCache(h http.Handler) http.Handler {
 
 func RunServerAndGame() {
 	var addr = flag.String("addr", "127.0.0.1:8080", "http service address")
+	var tickCount = flag.Int("tick", 2, "How many ticks per seconds will server has.")
 	flag.Parse()
-	go gameLoop()
+	go gameLoop(*tickCount)
 
 	http.HandleFunc("/", serveHome)
 	http.HandleFunc("/ws", serveWs)
