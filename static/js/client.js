@@ -40,14 +40,22 @@ window.addEventListener("load", function() {
         $canvas.innerHTML = '';
 
         world.AllObjects.forEach(obj => {
-            var $ch = document.createElement('div')
+            var domId = 'game-obj-' + obj.Id
+            var $ch = document.getElementById(domId)
+            if (!$ch) {
+                $ch = document.createElement('div')
+                $ch.id = domId
+            }
+            // TODO support deleting div of removed objects
             $ch.className = 'block'
             $ch.style.top = obj.Y + 'px'
             $ch.style.left = obj.X + 'px'
             $ch.style.width = obj.Width + 'px'
             $ch.style.height = obj.Height + 'px'
+            $ch.classList.toggle('spirit', !!obj.SpiritId)
+            $ch.classList.toggle('no-spirit', !obj.SpiritId)
+
             if (obj.SpiritId) {
-                $ch.classList.add('spirit')
                 $ch.style.backgroundImage = 'url(/static/img/cards/' + obj.SpiritId + '.png)'
                 $ch.draggable = true
                 $ch.ondragstart = ev => {
@@ -61,8 +69,6 @@ window.addEventListener("load", function() {
                 $ch.ondragend = ev => {
                     dragging.objectBeingDragged = null
                 }
-            } else {
-                $ch.classList.add('no-spirit')
             }
             $canvas.appendChild($ch)
         })

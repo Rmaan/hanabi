@@ -25,7 +25,7 @@ func (o *BaseObject) getY() int16 {
 }
 
 type HasShape interface {
-	tick(tickNumber int)
+	tick()
 	getX() int16
 	getY() int16
 	getWidth() int16
@@ -37,16 +37,16 @@ type RotatingObject struct {
 	centerX, centerY, radius int16
 }
 
-func (o *RotatingObject) tick(tickNumber int) {
-	o.Y = o.centerX + int16(float64(o.radius)*math.Cos(math.Pi*2*float64(tickNumber)/50))
-	o.X = o.centerY + int16(float64(o.radius)*math.Sin(math.Pi*2*float64(tickNumber)/50))
+func (o *RotatingObject) tick() {
+	o.Y = o.centerX + int16(float64(o.radius)*math.Cos(math.Pi*2*float64(passedSeconds)/2))
+	o.X = o.centerY + int16(float64(o.radius)*math.Sin(math.Pi*2*float64(passedSeconds)/2))
 }
 
 type StaticObject struct {
 	BaseObject
 }
 
-func (o *StaticObject) tick(int) {
+func (o *StaticObject) tick() {
 }
 
 type Card struct {
@@ -54,6 +54,6 @@ type Card struct {
 	SpiritId int
 }
 
-func (c *Card) tick(tickNumber int) {
+func (c *Card) tick() {
 }
 

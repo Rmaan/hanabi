@@ -18,9 +18,11 @@ type playerCommand struct {
 	data []byte
 }
 
+var tickNumber int
+var passedSeconds float64 // It's tickNumber / ticksPerSecond
+
 const maxWidth = 1000
 const maxHeight = 560
-
 
 type Packet struct {
 	AllObjects []HasShape
@@ -51,18 +53,18 @@ func joinNewPlayers() {
 	}
 }
 
-func doTick(tickNumber int) {
+func doTick() {
 	joinNewPlayers()
 
-	processCommands(tickNumber)
+	processCommands()
 	for _, obj := range allObjects {
-		obj.tick(tickNumber)
+		obj.tick()
 	}
 
-	broadcastWorld(tickNumber)
+	broadcastWorld()
 }
 
-func processCommands(tickNumber int) {
+func processCommands() {
 	command := struct {
 		Type   string          `json:"type"`
 		Params json.RawMessage `json:"params"`
@@ -70,7 +72,7 @@ func processCommands(tickNumber int) {
 
 	moveCommand := struct {
 		X, Y, Target int16
-		TargetId uint16
+		TargetId     uint16
 	}{}
 
 	for len(newCommands) > 0 {
@@ -91,7 +93,7 @@ func processCommands(tickNumber int) {
 				log.Printf("bad obj id to move %v", moveCommand.TargetId)
 				continue
 			}
-			obj := allObjects[moveCommand.TargetId - 1].(*Card)
+			obj := allObjects[moveCommand.TargetId-1].(*Card)
 			obj.X = moveCommand.X
 			obj.Y = moveCommand.Y
 		}
@@ -99,7 +101,7 @@ func processCommands(tickNumber int) {
 }
 
 // Serialize world and send it to all players and remove any player that fails.
-func broadcastWorld(tickNumber int) {
+func broadcastWorld() {
 	serializedWorld, err := msgpack.Marshal(Packet{
 		AllObjects: allObjects,
 		TickNumber: tickNumber,
@@ -125,7 +127,7 @@ func gameLoop(tickPerSecond int) {
 	tickInterval := time.Duration(time.Second.Nanoseconds() / int64(tickPerSecond))
 	fmt.Println("Tick per sec", tickPerSecond, "each", tickInterval)
 
-	nextId := func () int16 {
+	nextId := func() int16 {
 		return int16(len(allObjects) + 1)
 	}
 
@@ -134,10 +136,11 @@ func gameLoop(tickPerSecond int) {
 	allObjects = append(allObjects, &Card{BaseObject{Id: nextId(), X: 300, Y: 100, Width: 100, Height: 140}, 2})
 	allObjects = append(allObjects, &Card{BaseObject{Id: nextId(), X: 300, Y: 300, Width: 100, Height: 140}, 32})
 
-	for tickNumber := 0; ; tickNumber++ {
+	for tickNumber = 0; ; tickNumber++ {
 		tickBegin := time.Now()
+		passedSeconds = float64(tickNumber) / float64(tickPerSecond)
 
-		doTick(tickNumber)
+		doTick()
 
 		duration := time.Since(tickBegin)
 		remaining := time.Duration(tickInterval.Nanoseconds() - duration.Nanoseconds())
