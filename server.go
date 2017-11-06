@@ -1,11 +1,11 @@
 package hanabi
 
 import (
-	"net/http"
-	"log"
 	"flag"
 	"github.com/gorilla/websocket"
 	"html/template"
+	"log"
+	"net/http"
 )
 
 var homeTemplate = template.Must(template.New("").Parse(`<!DOCTYPE html>
@@ -65,8 +65,8 @@ func NoCache(h http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		//w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate") // HTTP 1.1.
 		w.Header().Set("Cache-Control", "no-cache") // HTTP 1.1.
-		w.Header().Set("Pragma", "no-cache")                                   // HTTP 1.0.
-		w.Header().Set("Expires", "0")                                         // Proxies.
+		w.Header().Set("Pragma", "no-cache")        // HTTP 1.0.
+		w.Header().Set("Expires", "0")              // Proxies.
 
 		h.ServeHTTP(w, r)
 	}

@@ -3,7 +3,7 @@ package hanabi
 import "math"
 
 type BaseObject struct {
-	Id int16
+	Id            int16
 	X, Y          int16
 	Height, Width int16
 }
@@ -56,4 +56,3 @@ type Card struct {
 
 func (c *Card) tick() {
 }
-

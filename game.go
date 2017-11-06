@@ -1,21 +1,28 @@
 package hanabi
 
 import (
-	"fmt"
-	"time"
-	"github.com/gorilla/websocket"
-	"log"
-	"github.com/vmihailenco/msgpack"
 	"encoding/json"
+	"fmt"
+	"github.com/gorilla/websocket"
+	"github.com/vmihailenco/msgpack"
+	"log"
+	"time"
 )
 
 var allObjects = make([]HasShape, 0)
-var clientList = make([]*websocket.Conn, 0)
+var playerList = make([]*Player, 0)
 var newCommands = make(chan playerCommand, 100)
 
+type Player struct {
+	ws             *websocket.Conn
+	name           string
+	isObserver     bool
+	isDisconnected bool
+}
+
 type playerCommand struct {
-	ws   *websocket.Conn
-	data []byte
+	player *Player
+	data   []byte
 }
 
 var tickNumber int
@@ -29,27 +36,36 @@ type Packet struct {
 	TickNumber int
 }
 
-func enqueuePlayerCommands(ws *websocket.Conn) {
-	for {
-		mt, message, err := ws.ReadMessage()
+func enqueuePlayerCommands(player *Player) {
+	// player is shared with game goroutine without lock take care!
+	for !player.isDisconnected {
+		mt, message, err := player.ws.ReadMessage()
 		if err != nil {
+			player.isDisconnected = true
 			log.Println("error in WS read:", err)
-			break
+
+		} else if mt != websocket.TextMessage {
+			player.isDisconnected = true
+			log.Printf("Binary message received from player %v", player)
+
+		} else {
+			newCommands <- playerCommand{player, message}
 		}
-		if mt != websocket.TextMessage {
-			log.Printf("Binary message received from ws %v", ws)
-			break
-		}
-		newCommands <- playerCommand{ws, message}
 	}
 }
 
 func joinNewPlayers() {
 	for len(newClients) > 0 {
 		ws := <-newClients
-		//_ = ws.WriteJSON("Welcome!")
-		clientList = append(clientList, ws)
-		go enqueuePlayerCommands(ws)
+		player := &Player{
+			ws:         ws,
+			name:       fmt.Sprintf("Player %d", len(playerList)+1),
+			isObserver: false,
+		}
+		playerList = append(playerList, player)
+		if !player.isObserver {
+			go enqueuePlayerCommands(player)
+		}
 	}
 }
 
@@ -79,7 +95,7 @@ func processCommands() {
 		c := <-newCommands
 		err := json.Unmarshal(c.data, &command)
 		if err != nil {
-			log.Printf("Invalid msg received from %v", c.ws)
+			log.Printf("Invalid msg received from %v", c.player)
 			continue
 		}
 		if command.Type == "move" {
@@ -110,16 +126,16 @@ func broadcastWorld() {
 		panic(err)
 	}
 
-	newClientList := make([]*websocket.Conn, 0, len(clientList))
-	for _, ws := range clientList {
-		err := ws.WriteMessage(websocket.BinaryMessage, serializedWorld)
+	for _, player := range playerList {
+		if player.isDisconnected {
+			continue
+		}
+		err := player.ws.WriteMessage(websocket.BinaryMessage, serializedWorld)
 		if err != nil {
 			log.Printf("Dropping client because of error: %#v", err)
-		} else {
-			newClientList = append(newClientList, ws)
+			player.isDisconnected = true
 		}
 	}
-	clientList = newClientList
 }
 
 // The game run in a single-thread environment. Other goroutines write to channels to interoperate with game engine.
