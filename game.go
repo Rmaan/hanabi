@@ -38,6 +38,7 @@ type Packet struct {
 
 func enqueuePlayerCommands(player *Player) {
 	// player is shared with game goroutine without lock take care!
+	// gorilla websocket supports one concurrent writer and one concurrent reader.
 	for !player.isDisconnected {
 		mt, message, err := player.ws.ReadMessage()
 		if err != nil {
