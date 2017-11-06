@@ -56,7 +56,7 @@ window.addEventListener("load", function() {
             $ch.classList.toggle('no-spirit', !obj.SpiritId)
 
             if (obj.SpiritId) {
-                $ch.style.backgroundImage = 'url(/static/img/cards/' + obj.SpiritId + '.png)'
+                $ch.style.backgroundImage = 'url(/static/img/spirits/' + obj.SpiritId + '.png)'
                 $ch.draggable = true
                 $ch.ondragstart = ev => {
                     dragging = {

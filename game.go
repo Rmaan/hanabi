@@ -17,8 +17,8 @@ type Player struct {
 	ws            *websocket.Conn
 	name          string
 	isObserver    bool
-	readCancelled chan interface{} // Read thread is the sender
-	disconnected  chan interface{} // Game thread is the sender
+	readCancelled chan struct{} // Websocket reader goroutine is the sender
+	disconnected  chan struct{} // Game goroutine is the sender
 }
 
 type playerCommand struct {
@@ -38,7 +38,10 @@ type Packet struct {
 }
 
 func enqueuePlayerCommands(player *Player) {
-	defer close(player.readCancelled)
+	defer func() {
+		player.readCancelled <- struct{}{}  // Send something so game goroutine gets the exact moment of closing.
+		close(player.readCancelled)
+	}()
 	// player is shared with game. Don't access non-threadsafe fields.
 	// gorilla websocket supports one concurrent writer and one concurrent reader.
 	for {
@@ -66,9 +69,11 @@ func joinNewPlayers() {
 	for len(newClients) > 0 {
 		ws := <-newClients
 		player := &Player{
-			ws:         ws,
-			name:       fmt.Sprintf("Player %d", len(playerList)+1),
-			isObserver: false,
+			ws:            ws,
+			name:          fmt.Sprintf("Player %d", len(playerList)+1),
+			isObserver:    false,
+			disconnected:  make(chan struct{}),
+			readCancelled: make(chan struct{}),
 		}
 		playerList = append(playerList, player)
 		if !player.isObserver {
@@ -117,9 +122,9 @@ func processCommands() {
 				log.Printf("bad obj id to move %v", moveCommand.TargetId)
 				continue
 			}
-			obj := allObjects[moveCommand.TargetId-1].(*Card)
-			obj.X = moveCommand.X
-			obj.Y = moveCommand.Y
+			obj := allObjects[moveCommand.TargetId-1]
+			obj.setX(moveCommand.X)
+			obj.setY(moveCommand.Y)
 		}
 	}
 }
@@ -136,10 +141,12 @@ func broadcastWorld() {
 
 	for _, player := range playerList {
 		select {
-		case <-player.readCancelled:
-			close(player.disconnected) // Disconnect player when read goroutine stops
-			continue
 		case <-player.disconnected:
+			continue
+		case _, ok := <-player.readCancelled:
+			if ok {
+				close(player.disconnected) // Disconnect player when read goroutine stops
+			}
 			continue
 		default:
 			err := player.ws.WriteMessage(websocket.BinaryMessage, serializedWorld)
@@ -151,11 +158,7 @@ func broadcastWorld() {
 	}
 }
 
-// The game run in a single-thread environment. Other goroutines write to channels to interoperate with game engine.
-func gameLoop(tickPerSecond int) {
-	tickInterval := time.Duration(time.Second.Nanoseconds() / int64(tickPerSecond))
-	fmt.Println("Tick per sec", tickPerSecond, "each", tickInterval)
-
+func initObjects() {
 	nextId := func() int16 {
 		return int16(len(allObjects) + 1)
 	}
@@ -164,6 +167,20 @@ func gameLoop(tickPerSecond int) {
 	allObjects = append(allObjects, &RotatingObject{BaseObject{Id: nextId(), Height: 2, Width: 2}, 100, 100, 50})
 	allObjects = append(allObjects, &Card{BaseObject{Id: nextId(), X: 300, Y: 100, Width: 100, Height: 140}, 2})
 	allObjects = append(allObjects, &Card{BaseObject{Id: nextId(), X: 300, Y: 300, Width: 100, Height: 140}, 32})
+	for x := int16(0); x < 8; x++ {
+		allObjects = append(allObjects, newHintToken(nextId(), 300+40*x, 300))
+	}
+	for x := int16(0); x < 3; x++ {
+		allObjects = append(allObjects, newMistakeToken(nextId(), 300+40*x, 360))
+	}
+}
+
+// The game run in a single-thread environment. Other goroutines write to channels to interoperate with game engine.
+func gameLoop(tickPerSecond int) {
+	tickInterval := time.Duration(time.Second.Nanoseconds() / int64(tickPerSecond))
+	fmt.Println("Tick per sec", tickPerSecond, "each", tickInterval)
+
+	initObjects()
 
 	for tickNumber = 0; ; tickNumber++ {
 		tickBegin := time.Now()

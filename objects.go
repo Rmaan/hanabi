@@ -24,12 +24,25 @@ func (o *BaseObject) getY() int16 {
 	return o.Y
 }
 
+func (o *BaseObject) setX(x int16) {
+	o.X = x
+}
+
+func (o *BaseObject) setY(y int16) {
+	o.Y = y
+}
+
+func (o *BaseObject) tick() {
+}
+
 type HasShape interface {
 	tick()
 	getX() int16
 	getY() int16
 	getWidth() int16
 	getHeight() int16
+	setX(y int16)
+	setY(y int16)
 }
 
 type RotatingObject struct {
@@ -46,13 +59,35 @@ type StaticObject struct {
 	BaseObject
 }
 
-func (o *StaticObject) tick() {
-}
-
 type Card struct {
 	BaseObject
 	SpiritId int
 }
 
-func (c *Card) tick() {
+type HintToken struct {
+	BaseObject
+	SpiritId int
+	Used     bool
+}
+
+func newHintToken(id, x, y int16) *HintToken {
+	return &HintToken{
+		BaseObject{id, x, y, 25, 25},
+		103,
+		false,
+	}
+}
+
+type MistakeToken struct {
+	BaseObject
+	SpiritId int
+	Used     bool
+}
+
+func newMistakeToken(id, x, y int16) *MistakeToken {
+	return &MistakeToken{
+		BaseObject{id, x, y, 25, 25},
+		101,
+		false,
+	}
 }
