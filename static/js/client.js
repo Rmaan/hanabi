@@ -15,6 +15,12 @@ window.addEventListener("load", function() {
         console.log('drop', ev,  ev.dataTransfer.getData("text"))
     }
 
+    function sendCommand(type, params) {
+        var data = JSON.stringify({type: type, params: params})
+        $debug.innerText = data;
+        ws.send(data)
+    }
+
     // TODO throttle these events
     $canvas.ondragover = ev => {
         ev.preventDefault()
@@ -24,9 +30,11 @@ window.addEventListener("load", function() {
             'X': ev.clientX - $canvas.getClientRects()[0].x - dragging.gripOffsetX,
             'Y': ev.clientY - $canvas.getClientRects()[0].y - dragging.gripOffsetY,
         }
-        var data = JSON.stringify({type: 'move', params: commandParams})
-        $debug.innerText = data;
-        ws.send(data)
+        sendCommand('move', commandParams)
+    }
+
+    function flipItem(objId) {
+        sendCommand('flip', {'TargetId': objId})
     }
 
     var x = 0
@@ -68,6 +76,9 @@ window.addEventListener("load", function() {
                 }
                 $ch.ondragend = ev => {
                     dragging.objectBeingDragged = null
+                }
+                $ch.onclick = ev => {
+                    flipItem(obj.Id)
                 }
             }
             $canvas.appendChild($ch)

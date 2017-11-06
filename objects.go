@@ -45,6 +45,10 @@ type HasShape interface {
 	setY(y int16)
 }
 
+type Flipper interface {
+	flip()
+}
+
 type RotatingObject struct {
 	BaseObject
 	centerX, centerY, radius int16
@@ -70,6 +74,16 @@ type HintToken struct {
 	Used     bool
 }
 
+func (t *HintToken) flip() {
+	t.Used = !t.Used
+
+	if t.Used {
+		t.SpiritId = 104
+	} else {
+		t.SpiritId = 103
+	}
+}
+
 func newHintToken(id, x, y int16) *HintToken {
 	return &HintToken{
 		BaseObject{id, x, y, 25, 25},
@@ -82,6 +96,15 @@ type MistakeToken struct {
 	BaseObject
 	SpiritId int
 	Used     bool
+}
+
+func (t *MistakeToken) flip() {
+	t.Used = !t.Used
+	if t.Used {
+		t.SpiritId = 102
+	} else {
+		t.SpiritId = 101
+	}
 }
 
 func newMistakeToken(id, x, y int16) *MistakeToken {

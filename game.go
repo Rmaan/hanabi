@@ -99,11 +99,6 @@ func processCommands() {
 		Params json.RawMessage `json:"params"`
 	}{}
 
-	moveCommand := struct {
-		X, Y, Target int16
-		TargetId     uint16
-	}{}
-
 	for len(newCommands) > 0 {
 		c := <-newCommands
 		err := json.Unmarshal(c.data, &command)
@@ -112,9 +107,14 @@ func processCommands() {
 			continue
 		}
 		if command.Type == "move" {
+			moveCommand := struct {
+				X, Y, Target int16
+				TargetId     uint16
+			}{}
+
 			err = json.Unmarshal(command.Params, &moveCommand)
 			if err != nil {
-				log.Printf("err in move %v `%s`", err, command.Params)
+				log.Printf("err in move params %v `%s`", err, command.Params)
 				continue
 			}
 			log.Printf("move command %+v", moveCommand)
@@ -125,6 +125,26 @@ func processCommands() {
 			obj := allObjects[moveCommand.TargetId-1]
 			obj.setX(moveCommand.X)
 			obj.setY(moveCommand.Y)
+		} else if command.Type == "flip" {
+			flipCommand := struct {
+				TargetId uint16
+			}{}
+
+			err = json.Unmarshal(command.Params, &flipCommand)
+			if err != nil {
+				log.Printf("err in flip params %v `%s`", err, command.Params)
+				continue
+			}
+			log.Printf("flip command %+v", flipCommand)
+			if int(flipCommand.TargetId) > len(allObjects) || flipCommand.TargetId == 0 {
+				log.Printf("bad obj id to flip %v", flipCommand.TargetId)
+				continue
+			}
+			if obj, ok := allObjects[flipCommand.TargetId-1].(Flipper); ok {
+				obj.flip()
+			}
+		} else {
+			log.Printf("unknown command type %v", command.Type)
 		}
 	}
 }
