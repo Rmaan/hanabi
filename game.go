@@ -14,10 +14,11 @@ var playerList = make([]*Player, 0)
 var newCommands = make(chan playerCommand, 100)
 
 type Player struct {
-	ws             *websocket.Conn
-	name           string
-	isObserver     bool
-	isDisconnected bool
+	ws            *websocket.Conn
+	name          string
+	isObserver    bool
+	readCancelled chan interface{} // Read thread is the sender
+	disconnected  chan interface{} // Game thread is the sender
 }
 
 type playerCommand struct {
@@ -37,20 +38,26 @@ type Packet struct {
 }
 
 func enqueuePlayerCommands(player *Player) {
-	// player is shared with game goroutine without lock take care!
+	defer close(player.readCancelled)
+	// player is shared with game. Don't access non-threadsafe fields.
 	// gorilla websocket supports one concurrent writer and one concurrent reader.
-	for !player.isDisconnected {
-		mt, message, err := player.ws.ReadMessage()
-		if err != nil {
-			player.isDisconnected = true
-			log.Println("error in WS read:", err)
+	for {
+		select {
+		case <-player.disconnected:
+			return
+		default:
+			mt, message, err := player.ws.ReadMessage()
+			if err != nil {
+				log.Println("error in WS read:", err)
+				return
 
-		} else if mt != websocket.TextMessage {
-			player.isDisconnected = true
-			log.Printf("Binary message received from player %v", player)
+			} else if mt != websocket.TextMessage {
+				log.Printf("Binary message received from player %v", player)
+				return
 
-		} else {
-			newCommands <- playerCommand{player, message}
+			} else {
+				newCommands <- playerCommand{player, message}
+			}
 		}
 	}
 }
@@ -128,13 +135,18 @@ func broadcastWorld() {
 	}
 
 	for _, player := range playerList {
-		if player.isDisconnected {
+		select {
+		case <-player.readCancelled:
+			close(player.disconnected) // Disconnect player when read goroutine stops
 			continue
-		}
-		err := player.ws.WriteMessage(websocket.BinaryMessage, serializedWorld)
-		if err != nil {
-			log.Printf("Dropping client because of error: %#v", err)
-			player.isDisconnected = true
+		case <-player.disconnected:
+			continue
+		default:
+			err := player.ws.WriteMessage(websocket.BinaryMessage, serializedWorld)
+			if err != nil {
+				log.Printf("Dropping client because of error: %#v", err)
+				close(player.disconnected)
+			}
 		}
 	}
 }
