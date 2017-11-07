@@ -81,6 +81,7 @@ func doTick() {
 	joinNewPlayers()
 
 	processCommands()
+
 	for _, obj := range allObjects {
 		obj.tick()
 	}
@@ -147,8 +148,7 @@ func processCommands() {
 	}
 }
 
-// Serialize world and send it to all players and remove any player that fails.
-func broadcastWorld() {
+func serializeWorld() []byte{
 	serializedWorld, err := msgpack.Marshal(Packet{
 		AllObjects: allObjects,
 		TickNumber: tickNumber,
@@ -156,6 +156,11 @@ func broadcastWorld() {
 	if err != nil {
 		panic(err)
 	}
+	return serializedWorld
+}
+
+func broadcastWorld() {
+	var serializedWorld []byte
 
 	for _, player := range playerList {
 		select {
@@ -168,6 +173,10 @@ func broadcastWorld() {
 		case <-player.readCancelled:
 			close(player.disconnected) // Disconnect player when read goroutine stops
 		default:
+			// Lazy serialization cause it's reduce server load a lot when nobody is connected
+			if serializedWorld == nil {
+				serializedWorld = serializeWorld()
+			}
 			err := player.ws.WriteMessage(websocket.BinaryMessage, serializedWorld)
 			if err != nil {
 				log.Printf("Dropping client because of error: %#v", err)
