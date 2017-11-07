@@ -92,7 +92,7 @@ type Card struct {
 }
 
 func newCard(id, x, y, spiritId int16, scope *image.Rectangle) *Card{
-	return &Card{BaseObject{Id: id, X: x, Y: y, Width: 100, Height: 140, scope: scope}, spiritId}
+	return &Card{BaseObject{Id: id, X: x, Y: y, Width: 100 * 0.9, Height: 140 * 0.9, scope: scope}, spiritId}
 }
 
 type HintToken struct {
