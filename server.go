@@ -5,7 +5,9 @@ import (
 	"github.com/gorilla/websocket"
 	"html/template"
 	"log"
+	"math/rand"
 	"net/http"
+	"time"
 )
 
 var homeTemplate = template.Must(template.New("").Parse(`<!DOCTYPE html>
@@ -78,6 +80,8 @@ func RunServerAndGame() {
 	var addr = flag.String("addr", "127.0.0.1:8080", "http service address")
 	var tickCount = flag.Int("tick", 20, "How many ticks per seconds will server has.")
 	flag.Parse()
+
+	rand.Seed(time.Now().UnixNano())
 	go gameLoop(*tickCount)
 
 	http.HandleFunc("/", serveHome)
