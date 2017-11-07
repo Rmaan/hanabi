@@ -189,11 +189,14 @@ func initObjects() {
 	allObjects = append(allObjects, &RotatingObject{BaseObject{Id: nextId(), Height: 2, Width: 2}, 100, 100, 50})
 	allObjects = append(allObjects, newCard(nextId(), 300, 100, 2, &cardsScope))
 	allObjects = append(allObjects, newCard(nextId(), 500, 100, 32, &cardsScope))
-	for x := int16(0); x < 8; x++ {
+	for x := int16(0); x < 4; x++ {
 		allObjects = append(allObjects, newHintToken(nextId(), 300+40*x, 300))
 	}
+	for x := int16(0); x < 4; x++ {
+		allObjects = append(allObjects, newHintToken(nextId(), 300+40*x, 325))
+	}
 	for x := int16(0); x < 3; x++ {
-		allObjects = append(allObjects, newMistakeToken(nextId(), 300+40*x, 360))
+		allObjects = append(allObjects, newMistakeToken(nextId(), 320+40*x, 360))
 	}
 }
 
