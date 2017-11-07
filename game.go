@@ -38,10 +38,7 @@ type Packet struct {
 }
 
 func enqueuePlayerCommands(player *Player) {
-	defer func() {
-		player.readCancelled <- struct{}{}  // Send something so game goroutine gets the exact moment of closing.
-		close(player.readCancelled)
-	}()
+	defer close(player.readCancelled)
 	// player is shared with game. Don't access non-threadsafe fields.
 	// gorilla websocket supports one concurrent writer and one concurrent reader.
 	for {
@@ -163,11 +160,12 @@ func broadcastWorld() {
 		select {
 		case <-player.disconnected:
 			continue
-		case _, ok := <-player.readCancelled:
-			if ok {
-				close(player.disconnected) // Disconnect player when read goroutine stops
-			}
-			continue
+		default:
+		}
+		// If we merge selects, we may close `disconnected` for a second time.
+		select {
+		case <-player.readCancelled:
+			close(player.disconnected) // Disconnect player when read goroutine stops
 		default:
 			err := player.ws.WriteMessage(websocket.BinaryMessage, serializedWorld)
 			if err != nil {
