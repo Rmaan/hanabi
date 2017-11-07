@@ -12,6 +12,10 @@ type BaseObject struct {
 	scope         *image.Rectangle
 }
 
+func (o *BaseObject) getId() int {
+	return o.Id
+}
+
 func (o *BaseObject) getWidth() int {
 	return o.Width
 }
@@ -27,6 +31,7 @@ func (o *BaseObject) getX() int {
 func (o *BaseObject) getY() int {
 	return o.Y
 }
+
 
 func clamp(x, min, max int) int {
 	if x < min {
@@ -59,6 +64,7 @@ type HasShape interface {
 	tick()
 	getX() int
 	getY() int
+	getId() int
 	getWidth() int
 	getHeight() int
 }

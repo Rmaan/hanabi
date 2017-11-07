@@ -7,6 +7,8 @@ import (
 	"github.com/vmihailenco/msgpack"
 	"image"
 	"log"
+	"math/rand"
+	"reflect"
 	"time"
 )
 
@@ -95,6 +97,15 @@ func processCommands() {
 		Params json.RawMessage `json:"params"`
 	}{}
 
+	findObjById := func(id int) (HasShape, error) {
+		for _, x := range allObjects {
+			if x.getId() == id {
+				return x, nil
+			}
+		}
+		return nil, fmt.Errorf("Invalid id")
+	}
+
 	for len(newCommands) > 0 {
 		c := <-newCommands
 		err := json.Unmarshal(c.data, &command)
@@ -104,8 +115,7 @@ func processCommands() {
 		}
 		if command.Type == "move" {
 			moveCommand := struct {
-				X, Y, Target int
-				TargetId     uint16
+				X, Y, TargetId int
 			}{}
 
 			err = json.Unmarshal(command.Params, &moveCommand)
@@ -114,19 +124,18 @@ func processCommands() {
 				continue
 			}
 			log.Printf("move command %+v", moveCommand)
-			if int(moveCommand.TargetId) > len(allObjects) || moveCommand.TargetId == 0 {
-				log.Printf("bad obj id to move %v", moveCommand.TargetId)
+
+			obj, err := findObjById(moveCommand.TargetId)
+			if err != nil {
 				continue
 			}
-			if obj, ok := allObjects[moveCommand.TargetId-1].(Mover); ok {
+			if obj, ok := obj.(Mover); ok {
 				obj.setX(moveCommand.X)
 				obj.setY(moveCommand.Y)
-			} else {
-				log.Printf("Moved the unmovable!")
 			}
 		} else if command.Type == "flip" {
 			flipCommand := struct {
-				TargetId uint16
+				TargetId int
 			}{}
 
 			err = json.Unmarshal(command.Params, &flipCommand)
@@ -135,11 +144,11 @@ func processCommands() {
 				continue
 			}
 			log.Printf("flip command %+v", flipCommand)
-			if int(flipCommand.TargetId) > len(allObjects) || flipCommand.TargetId == 0 {
-				log.Printf("bad obj id to flip %v", flipCommand.TargetId)
+			obj, err := findObjById(flipCommand.TargetId)
+			if err != nil {
 				continue
 			}
-			if obj, ok := allObjects[flipCommand.TargetId-1].(Flipper); ok {
+			if obj, ok := obj.(Flipper); ok {
 				obj.flip()
 			}
 		} else {
@@ -148,7 +157,7 @@ func processCommands() {
 	}
 }
 
-func serializeWorld() []byte{
+func serializeWorld() []byte {
 	serializedWorld, err := msgpack.Marshal(Packet{
 		AllObjects: allObjects,
 		TickNumber: tickNumber,
@@ -188,8 +197,19 @@ func broadcastWorld() {
 
 const maxWidth = 1000
 const maxHeight = 560
+
 var cardsScope = image.Rect(int(maxWidth*0.15), int(maxHeight*0.15), int(maxWidth*0.85), int(maxHeight*0.85))
 var fullScope = image.Rect(0, 0, maxWidth, maxHeight)
+
+func Shuffle(slice interface{}) {
+	rv := reflect.ValueOf(slice)
+	swap := reflect.Swapper(slice)
+	length := rv.Len()
+	for i := length - 1; i > 0; i-- {
+		j := rand.Intn(i + 1)
+		swap(i, j)
+	}
+}
 
 func initObjects() {
 	lastId := 0
@@ -201,10 +221,10 @@ func initObjects() {
 	allObjects = append(allObjects, &StaticObject{BaseObject{Id: nextId(), X: 100, Y: 100, Width: 10, Height: 10}})
 	allObjects = append(allObjects, &RotatingObject{BaseObject{Id: nextId(), Height: 2, Width: 2}, 100, 100, 50})
 
-	var allCards []*Card
+	var deck []*Card
 	var color CardColor
 	for color = 0; color < ColorCount; color++ {
-		allCards = append(allCards,
+		deck = append(deck,
 			newCard(nextId(), 300, 100, color, 1, &cardsScope),
 			newCard(nextId(), 300, 100, color, 1, &cardsScope),
 			newCard(nextId(), 300, 100, color, 1, &cardsScope),
@@ -217,7 +237,8 @@ func initObjects() {
 			newCard(nextId(), 300, 100, color, 5, &cardsScope),
 		)
 	}
-	for _, c := range allCards {
+	Shuffle(deck)
+	for _, c := range deck[:4] {
 		allObjects = append(allObjects, c)
 	}
 
@@ -249,8 +270,8 @@ func gameLoop(tickPerSecond int) {
 		duration := time.Since(tickBegin)
 		durationTotal += duration.Nanoseconds()
 		remaining := time.Duration(tickInterval.Nanoseconds() - duration.Nanoseconds())
-		if tickNumber % 100 == 0 {
-			fmt.Printf("Tick %6v avg tick duration %10v\n", tickNumber, time.Duration(durationTotal / 100))
+		if tickNumber%100 == 0 {
+			fmt.Printf("Tick %6v avg tick duration %10v\n", tickNumber, time.Duration(durationTotal/100))
 			durationTotal = 0
 		}
 		if remaining > 0 {
