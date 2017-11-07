@@ -103,7 +103,7 @@ func processCommands() {
 		}
 		if command.Type == "move" {
 			moveCommand := struct {
-				X, Y, Target int16
+				X, Y, Target int
 				TargetId     uint16
 			}{}
 
@@ -120,6 +120,8 @@ func processCommands() {
 			if obj, ok := allObjects[moveCommand.TargetId-1].(Mover); ok {
 				obj.setX(moveCommand.X)
 				obj.setY(moveCommand.Y)
+			} else {
+				log.Printf("Moved the unmovable!")
 			}
 		} else if command.Type == "flip" {
 			flipCommand := struct {
@@ -181,21 +183,42 @@ var cardsScope = image.Rect(int(maxWidth*0.15), int(maxHeight*0.15), int(maxWidt
 var fullScope = image.Rect(0, 0, maxWidth, maxHeight)
 
 func initObjects() {
-	nextId := func() int16 {
-		return int16(len(allObjects) + 1)
+	lastId := 0
+	nextId := func() int {
+		lastId++
+		return lastId
 	}
 
 	allObjects = append(allObjects, &StaticObject{BaseObject{Id: nextId(), X: 100, Y: 100, Width: 10, Height: 10}})
 	allObjects = append(allObjects, &RotatingObject{BaseObject{Id: nextId(), Height: 2, Width: 2}, 100, 100, 50})
-	allObjects = append(allObjects, newCard(nextId(), 300, 100, 2, &cardsScope))
-	allObjects = append(allObjects, newCard(nextId(), 500, 100, 32, &cardsScope))
-	for x := int16(0); x < 4; x++ {
+
+	var allCards []*Card
+	var color CardColor
+	for color = 0; color < ColorCount; color++ {
+		allCards = append(allCards,
+			newCard(nextId(), 300, 100, color, 1, &cardsScope),
+			newCard(nextId(), 300, 100, color, 1, &cardsScope),
+			newCard(nextId(), 300, 100, color, 1, &cardsScope),
+			newCard(nextId(), 300, 100, color, 2, &cardsScope),
+			newCard(nextId(), 300, 100, color, 2, &cardsScope),
+			newCard(nextId(), 300, 100, color, 3, &cardsScope),
+			newCard(nextId(), 300, 100, color, 3, &cardsScope),
+			newCard(nextId(), 300, 100, color, 4, &cardsScope),
+			newCard(nextId(), 300, 100, color, 4, &cardsScope),
+			newCard(nextId(), 300, 100, color, 5, &cardsScope),
+		)
+	}
+	for _, c := range allCards {
+		allObjects = append(allObjects, c)
+	}
+
+	for x := 0; x < 4; x++ {
 		allObjects = append(allObjects, newHintToken(nextId(), 300+40*x, 300))
 	}
-	for x := int16(0); x < 4; x++ {
+	for x := 0; x < 4; x++ {
 		allObjects = append(allObjects, newHintToken(nextId(), 300+40*x, 325))
 	}
-	for x := int16(0); x < 3; x++ {
+	for x := 0; x < 3; x++ {
 		allObjects = append(allObjects, newMistakeToken(nextId(), 320+40*x, 360))
 	}
 }
@@ -207,6 +230,7 @@ func gameLoop(tickPerSecond int) {
 
 	initObjects()
 
+	var durationTotal int64 = 0
 	for tickNumber = 0; ; tickNumber++ {
 		tickBegin := time.Now()
 		passedSeconds = float64(tickNumber) / float64(tickPerSecond)
@@ -214,9 +238,13 @@ func gameLoop(tickPerSecond int) {
 		doTick()
 
 		duration := time.Since(tickBegin)
+		durationTotal += duration.Nanoseconds()
 		remaining := time.Duration(tickInterval.Nanoseconds() - duration.Nanoseconds())
+		if tickNumber % 100 == 0 {
+			fmt.Printf("Tick %6v avg tick duration %10v\n", tickNumber, time.Duration(durationTotal / 100))
+			durationTotal = 0
+		}
 		if remaining > 0 {
-			fmt.Printf("Tick %6v done in %10v\n", tickNumber, duration)
 			time.Sleep(remaining)
 		} else {
 			fmt.Printf("Tick was too long!! %v\n", remaining)

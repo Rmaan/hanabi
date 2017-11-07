@@ -1,34 +1,34 @@
 package hanabi
 
 import (
-	"math"
 	"image"
+	"math"
 )
 
 type BaseObject struct {
-	Id            int16
-	X, Y          int16
-	Height, Width int16
-	scope *image.Rectangle
+	Id            int
+	X, Y          int
+	Height, Width int
+	scope         *image.Rectangle
 }
 
-func (o *BaseObject) getWidth() int16 {
+func (o *BaseObject) getWidth() int {
 	return o.Width
 }
 
-func (o *BaseObject) getHeight() int16 {
+func (o *BaseObject) getHeight() int {
 	return o.Height
 }
 
-func (o *BaseObject) getX() int16 {
+func (o *BaseObject) getX() int {
 	return o.X
 }
 
-func (o *BaseObject) getY() int16 {
+func (o *BaseObject) getY() int {
 	return o.Y
 }
 
-func clamp16(x, min, max int16) int16 {
+func clamp(x, min, max int) int {
 	if x < min {
 		return min
 	}
@@ -38,16 +38,16 @@ func clamp16(x, min, max int16) int16 {
 	return x
 }
 
-func (o *BaseObject) setX(x int16) {
+func (o *BaseObject) setX(x int) {
 	if o.scope != nil {
-		x = clamp16(x, int16(o.scope.Min.X), int16(o.scope.Max.X) - o.Width)
+		x = clamp(x, o.scope.Min.X, o.scope.Max.X-o.Width)
 	}
 	o.X = x
 }
 
-func (o *BaseObject) setY(y int16) {
+func (o *BaseObject) setY(y int) {
 	if o.scope != nil {
-		y = clamp16(y, int16(o.scope.Min.Y), int16(o.scope.Max.Y) - o.Height)
+		y = clamp(y, o.scope.Min.Y, o.scope.Max.Y-o.Height)
 	}
 	o.Y = y
 }
@@ -57,10 +57,10 @@ func (o *BaseObject) tick() {
 
 type HasShape interface {
 	tick()
-	getX() int16
-	getY() int16
-	getWidth() int16
-	getHeight() int16
+	getX() int
+	getY() int
+	getWidth() int
+	getHeight() int
 }
 
 type Flipper interface {
@@ -68,31 +68,39 @@ type Flipper interface {
 }
 
 type Mover interface {
-	setX(y int16)
-	setY(y int16)
+	setX(y int)
+	setY(y int)
 }
 
 type RotatingObject struct {
 	BaseObject
-	centerX, centerY, radius int16
+	centerX, centerY, radius int
 }
 
 func (o *RotatingObject) tick() {
-	o.Y = o.centerX + int16(float64(o.radius)*math.Cos(math.Pi*2*float64(passedSeconds)/2))
-	o.X = o.centerY + int16(float64(o.radius)*math.Sin(math.Pi*2*float64(passedSeconds)/2))
+	o.Y = o.centerX + int(float64(o.radius)*math.Cos(math.Pi*2*float64(passedSeconds)/2))
+	o.X = o.centerY + int(float64(o.radius)*math.Sin(math.Pi*2*float64(passedSeconds)/2))
 }
 
 type StaticObject struct {
 	BaseObject
 }
 
+type CardColor int
+
+const ColorCount = 5
+const NumberMax = 5
+const NumberMin = 1
+
 type Card struct {
 	BaseObject
-	SpiritId int16
+	SpiritId int
+	color    CardColor
+	number   int
 }
 
-func newCard(id, x, y, spiritId int16, scope *image.Rectangle) *Card{
-	return &Card{BaseObject{Id: id, X: x, Y: y, Width: 100 * 0.9, Height: 140 * 0.9, scope: scope}, spiritId}
+func newCard(id, x, y int, color CardColor, number int, scope *image.Rectangle) *Card {
+	return &Card{BaseObject{Id: id, X: x, Y: y, Width: 100 * 0.8, Height: 140 * 0.8, scope: scope}, (int(color)+1)*10 + number, color, number}
 }
 
 type HintToken struct {
@@ -111,7 +119,7 @@ func (t *HintToken) flip() {
 	}
 }
 
-func newHintToken(id, x, y int16) *HintToken {
+func newHintToken(id, x, y int) *HintToken {
 	return &HintToken{
 		BaseObject{id, x, y, 25, 25, &fullScope},
 		103,
@@ -134,7 +142,7 @@ func (t *MistakeToken) flip() {
 	}
 }
 
-func newMistakeToken(id, x, y int16) *MistakeToken {
+func newMistakeToken(id, x, y int) *MistakeToken {
 	return &MistakeToken{
 		BaseObject{id, x, y, 25, 25, &fullScope},
 		101,
