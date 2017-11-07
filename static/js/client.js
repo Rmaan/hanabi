@@ -17,7 +17,7 @@ window.addEventListener("load", function() {
 
     function sendCommand(type, params) {
         var data = JSON.stringify({type: type, params: params})
-        $debug.innerText = data;
+        $debug.innerText = +new Date() + " " + data;
         ws.send(data)
     }
 
@@ -86,21 +86,21 @@ window.addEventListener("load", function() {
     }
 
     var ws = new WebSocket(window.args.ws_url);
+    ws.binaryType = "arraybuffer"
+
     ws.onopen = function(e) {
         $status.textContent = "WS open"
     }
+
     ws.onclose = function(e) {
         $status.textContent = "WS closed :("
     }
+
     ws.onmessage = function(e) {
-        // console.log("RESPONSE: " + world);
-        var reader = new FileReader()
-        reader.onload = e => {
-            var buffer = new Uint8Array(e.target.result)
-            drawWorld(msgpack.decode(buffer))
-        }
-        reader.readAsArrayBuffer(e.data)
+        var buffer = new Uint8Array(e.data)
+        drawWorld(msgpack.decode(buffer))
     }
+
     ws.onerror = function(e) {
         console.log("WS err: " + e.data);
     }
