@@ -39,8 +39,6 @@ window.addEventListener("load", function() {
 
     var x = 0
     function drawWorld(world) {
-        if (world.TickNumber === undefined)
-            return;
         // console.log('drawing', world)
         x++
 

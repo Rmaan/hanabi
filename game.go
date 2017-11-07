@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/gorilla/websocket"
 	"github.com/vmihailenco/msgpack"
+	"image"
 	"log"
 	"time"
 )
@@ -28,9 +29,6 @@ type playerCommand struct {
 
 var tickNumber int
 var passedSeconds float64 // It's tickNumber / ticksPerSecond
-
-const maxWidth = 1000
-const maxHeight = 560
 
 type Packet struct {
 	AllObjects []HasShape
@@ -119,9 +117,10 @@ func processCommands() {
 				log.Printf("bad obj id to move %v", moveCommand.TargetId)
 				continue
 			}
-			obj := allObjects[moveCommand.TargetId-1]
-			obj.setX(moveCommand.X)
-			obj.setY(moveCommand.Y)
+			if obj, ok := allObjects[moveCommand.TargetId-1].(Mover); ok {
+				obj.setX(moveCommand.X)
+				obj.setY(moveCommand.Y)
+			}
 		} else if command.Type == "flip" {
 			flipCommand := struct {
 				TargetId uint16
@@ -176,6 +175,11 @@ func broadcastWorld() {
 	}
 }
 
+const maxWidth = 1000
+const maxHeight = 560
+var cardsScope = image.Rect(int(maxWidth*0.15), int(maxHeight*0.15), int(maxWidth*0.85), int(maxHeight*0.85))
+var fullScope = image.Rect(0, 0, maxWidth, maxHeight)
+
 func initObjects() {
 	nextId := func() int16 {
 		return int16(len(allObjects) + 1)
@@ -183,8 +187,8 @@ func initObjects() {
 
 	allObjects = append(allObjects, &StaticObject{BaseObject{Id: nextId(), X: 100, Y: 100, Width: 10, Height: 10}})
 	allObjects = append(allObjects, &RotatingObject{BaseObject{Id: nextId(), Height: 2, Width: 2}, 100, 100, 50})
-	allObjects = append(allObjects, &Card{BaseObject{Id: nextId(), X: 300, Y: 100, Width: 100, Height: 140}, 2})
-	allObjects = append(allObjects, &Card{BaseObject{Id: nextId(), X: 300, Y: 300, Width: 100, Height: 140}, 32})
+	allObjects = append(allObjects, newCard(nextId(), 300, 100, 2, &cardsScope))
+	allObjects = append(allObjects, newCard(nextId(), 500, 100, 32, &cardsScope))
 	for x := int16(0); x < 8; x++ {
 		allObjects = append(allObjects, newHintToken(nextId(), 300+40*x, 300))
 	}
