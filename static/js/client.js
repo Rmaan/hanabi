@@ -15,22 +15,34 @@ window.addEventListener("load", function() {
         console.log('drop', ev,  ev.dataTransfer.getData("text"))
     }
 
+    document.getElementById('btn-dc').onclick = () => ws.close()
+
     function sendCommand(type, params) {
         var data = JSON.stringify({type: type, params: params})
         $debug.innerText = +new Date() + " " + data;
         ws.send(data)
     }
 
-    // TODO throttle these events
-    $canvas.ondragover = ev => {
-        ev.preventDefault()
-        ev.dataTransfer.dropEffect = "move"
+    var lastMoveLocationX, lastMoveLocationY
+    var sendMoveCommand = _.throttle(ev => {
+        // on drag over will be called multiple times event if you don't move your cursor.
+        if (ev.clientX == lastMoveLocationX && ev.clientY == lastMoveLocationY)
+            return
+        lastMoveLocationX = ev.clientX
+        lastMoveLocationY = ev.clientY
+
         var commandParams = {
             'TargetId': dragging.objectBeingDragged,
             'X': ev.clientX - $canvas.getClientRects()[0].x - dragging.gripOffsetX,
             'Y': ev.clientY - $canvas.getClientRects()[0].y - dragging.gripOffsetY,
         }
         sendCommand('move', commandParams)
+    }, 50, {leading: false})
+
+    $canvas.ondragover = ev => {
+        ev.preventDefault()
+        ev.dataTransfer.dropEffect = "move"
+        sendMoveCommand(ev)
     }
 
     function flipItem(objId) {
@@ -43,7 +55,6 @@ window.addEventListener("load", function() {
         x++
 
         $status.textContent = world.TickNumber;
-        $canvas.innerHTML = '';
 
         world.AllObjects.forEach(obj => {
             var domId = 'game-obj-' + obj.Id
@@ -51,35 +62,37 @@ window.addEventListener("load", function() {
             if (!$ch) {
                 $ch = document.createElement('div')
                 $ch.id = domId
+                $ch.className = 'block'
+                $ch.style.width = obj.Width + 'px'
+                $ch.style.height = obj.Height + 'px'
+
+                if (obj.SpiritId) {
+                    $ch.classList.add('spirit')
+                    $ch.draggable = true
+                    $ch.ondragstart = ev => {
+                        dragging = {
+                            objectBeingDragged: obj.Id,
+                            gripOffsetX: ev.clientX - ev.target.getClientRects()[0].x,
+                            gripOffsetY: ev.clientY - ev.target.getClientRects()[0].y,
+                        }
+                        console.log('drag start', dragging)
+                    }
+                    $ch.onclick = ev => {
+                        flipItem(obj.Id)
+                    }
+                } else {
+                    $ch.classList.add('no-spirit')
+                }
+                $canvas.appendChild($ch)
             }
             // TODO support deleting div of removed objects
-            $ch.className = 'block'
+
             $ch.style.top = obj.Y + 'px'
             $ch.style.left = obj.X + 'px'
-            $ch.style.width = obj.Width + 'px'
-            $ch.style.height = obj.Height + 'px'
-            $ch.classList.toggle('spirit', !!obj.SpiritId)
-            $ch.classList.toggle('no-spirit', !obj.SpiritId)
 
             if (obj.SpiritId) {
-                $ch.style.backgroundImage = 'url(/static/img/spirits/' + obj.SpiritId + '.png)'
-                $ch.draggable = true
-                $ch.ondragstart = ev => {
-                    dragging = {
-                        objectBeingDragged: obj.Id,
-                        gripOffsetX: ev.clientX - ev.target.getClientRects()[0].x,
-                        gripOffsetY: ev.clientY - ev.target.getClientRects()[0].y,
-                    }
-                    console.log('drag start', dragging)
-                }
-                $ch.ondragend = ev => {
-                    dragging.objectBeingDragged = null
-                }
-                $ch.onclick = ev => {
-                    flipItem(obj.Id)
-                }
+                $ch.style.backgroundImage = 'url("/static/img/spirits/' + obj.SpiritId + '.png")'
             }
-            $canvas.appendChild($ch)
         })
     }
 

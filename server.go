@@ -18,8 +18,11 @@ var homeTemplate = template.Must(template.New("").Parse(`<!DOCTYPE html>
 </head>
 <meta charset="utf-8">
 <body>
+<div id="top-bar">
 <div id="status"></div>
 <div id="debug"></div>
+<button id='btn-dc'>DC</button>
+</div>
 <div id="canvas"></div>
 <script>
 window.args = {
@@ -27,6 +30,7 @@ window.args = {
 }
 </script>
 <script src="/static/js/pkg/msgpack-lite.min.js"></script>
+<script src="/static/js/pkg/underscore-min.js"></script>
 <script src="/static/js/client.js"></script>
 </body>
 </html>
