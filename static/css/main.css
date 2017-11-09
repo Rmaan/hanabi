@@ -11,6 +11,7 @@
     position: absolute;
 
     transition: all 100ms ease-in;
+    transform-origin: right bottom;
 }
 .block.no-spirit {
     background-color: black;

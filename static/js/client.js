@@ -49,6 +49,38 @@ window.addEventListener("load", function() {
         sendCommand('flip', {'TargetId': objId})
     }
 
+    function getObjectDiv(obj, scope) {
+        var domId = 'game-obj-' + obj.Id
+        var $o = document.getElementById(domId)
+        if (!$o) {
+            $o = document.createElement('div')
+            $o.id = domId
+            $o.className = 'block'
+            $o.style.width = obj.Width + 'px'
+            $o.style.height = obj.Height + 'px'
+
+            if (obj.SpiritId) {
+                $o.classList.add('spirit')
+                $o.draggable = true
+                $o.ondragstart = ev => {
+                    dragging = {
+                        objectBeingDragged: obj.Id,
+                        gripOffsetX: ev.clientX - ev.target.getClientRects()[0].x,
+                        gripOffsetY: ev.clientY - ev.target.getClientRects()[0].y,
+                    }
+                    console.log('drag start', dragging)
+                }
+                $o.onclick = ev => {
+                    flipItem(obj.Id)
+                }
+            } else {
+                $o.classList.add('no-spirit')
+            }
+            $canvas.querySelector('.' + scope).appendChild($o)
+        }
+        return $o
+    }
+
     var x = 0
     function drawWorld(world) {
         // console.log('drawing', world)
@@ -56,44 +88,29 @@ window.addEventListener("load", function() {
 
         $status.textContent = world.TickNumber;
 
-        world.AllObjects.forEach(obj => {
-            var domId = 'game-obj-' + obj.Id
-            var $ch = document.getElementById(domId)
-            if (!$ch) {
-                $ch = document.createElement('div')
-                $ch.id = domId
-                $ch.className = 'block'
-                $ch.style.width = obj.Width + 'px'
-                $ch.style.height = obj.Height + 'px'
+        // TODO support deleting div of removed objects
+        world.DeskObjects.forEach(obj => {
+            var $o = getObjectDiv(obj, 'desk')
 
-                if (obj.SpiritId) {
-                    $ch.classList.add('spirit')
-                    $ch.draggable = true
-                    $ch.ondragstart = ev => {
-                        dragging = {
-                            objectBeingDragged: obj.Id,
-                            gripOffsetX: ev.clientX - ev.target.getClientRects()[0].x,
-                            gripOffsetY: ev.clientY - ev.target.getClientRects()[0].y,
-                        }
-                        console.log('drag start', dragging)
-                    }
-                    $ch.onclick = ev => {
-                        flipItem(obj.Id)
-                    }
-                } else {
-                    $ch.classList.add('no-spirit')
-                }
-                $canvas.appendChild($ch)
-            }
-            // TODO support deleting div of removed objects
-
-            $ch.style.top = obj.Y + 'px'
-            $ch.style.left = obj.X + 'px'
+            $o.style.top = obj.Y + 'px'
+            $o.style.left = obj.X + 'px'
 
             if (obj.SpiritId) {
-                $ch.style.backgroundImage = 'url("/static/img/spirits/' + obj.SpiritId + '.png")'
+                $o.style.backgroundImage = 'url("/static/img/spirits/' + obj.SpiritId + '.png")'
             }
         })
+
+        world.Players.forEach((p, playerIndex) => p.Cards.forEach(obj => {
+            var $o = getObjectDiv(obj, 'player-' + playerIndex)
+
+            $o.style.top = obj.Y + 'px'
+            $o.style.left = obj.X + 'px'
+
+            if (obj.SpiritId) {
+                $o.style.backgroundImage = 'url("/static/img/spirits/' + obj.SpiritId + '.png")'
+            }
+        }))
+        console.log(world)
     }
 
     var ws = new WebSocket(window.args.ws_url);

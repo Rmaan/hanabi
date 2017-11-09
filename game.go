@@ -12,9 +12,23 @@ import (
 	"time"
 )
 
-var allObjects = make([]HasShape, 0)
+var deskObjects = make([]HasShape, 0)
 var playerList = make([]*Player, 0)
 var newCommands = make(chan playerCommand, 100)
+
+// Positioning
+const maxWidth = 1000
+const maxHeight = 560
+const playerMargin = 0.20
+
+var cardsScope = image.Rect(maxWidth*playerMargin, 0, maxWidth*(1-playerMargin), maxHeight*(1-playerMargin))
+var playerScope = image.Rect(maxWidth*playerMargin, maxHeight*(1-playerMargin), maxWidth*(1-playerMargin), maxHeight)
+var fullScope = image.Rect(0, 0, maxWidth, maxHeight)
+
+var deck []*Card
+
+var tickNumber int
+var passedSeconds float64 // It's tickNumber / ticksPerSecond
 
 type Player struct {
 	ws            *websocket.Conn
@@ -22,19 +36,13 @@ type Player struct {
 	isObserver    bool
 	readCancelled chan struct{} // Websocket reader goroutine is the sender
 	disconnected  chan struct{} // Game goroutine is the sender
+	// TODO change disconnected to boolean and change related goroutines.
+	Cards         []*Card
 }
 
 type playerCommand struct {
 	player *Player
 	data   []byte
-}
-
-var tickNumber int
-var passedSeconds float64 // It's tickNumber / ticksPerSecond
-
-type Packet struct {
-	AllObjects []HasShape
-	TickNumber int
 }
 
 func enqueuePlayerCommands(player *Player) {
@@ -72,6 +80,18 @@ func joinNewPlayers() {
 			disconnected:  make(chan struct{}),
 			readCancelled: make(chan struct{}),
 		}
+
+		cardX := 300
+		for x := 0; x < 5; x++ {
+			c := getCardFromDeck()
+			c.scope = &playerScope
+			randPart := rand.Intn(40) - 10
+			c.X = cardX + randPart
+			cardX += randPart + c.Width
+			c.Y = 450
+			player.Cards = append(player.Cards, c)
+		}
+
 		playerList = append(playerList, player)
 		if !player.isObserver {
 			go enqueuePlayerCommands(player)
@@ -84,7 +104,7 @@ func doTick() {
 
 	processCommands()
 
-	for _, obj := range allObjects {
+	for _, obj := range deskObjects {
 		obj.tick()
 	}
 
@@ -98,9 +118,17 @@ func processCommands() {
 	}{}
 
 	findObjById := func(id int) (HasShape, error) {
-		for _, x := range allObjects {
+		for _, x := range deskObjects {
 			if x.getId() == id {
 				return x, nil
+			}
+		}
+
+		for _, p := range playerList {
+			for _, x := range p.Cards {
+				if x.getId() == id {
+					return x, nil
+				}
 			}
 		}
 		return nil, fmt.Errorf("Invalid id")
@@ -157,11 +185,33 @@ func processCommands() {
 	}
 }
 
-func serializeWorld() []byte {
-	serializedWorld, err := msgpack.Marshal(Packet{
-		AllObjects: allObjects,
-		TickNumber: tickNumber,
-	})
+func serializeWorld(player *Player) []byte {
+	packet := struct {
+		DeskObjects  []HasShape
+		TickNumber   int
+		Players      []*Player
+		YourPlayerId int
+	}{
+		deskObjects,
+		tickNumber,
+		nil,
+		-1,
+	}
+
+	// Don't serialize disconnected players. Find user's ID.
+	for _, p := range playerList {
+		select {
+		case <-p.disconnected:
+			continue
+		default:
+		}
+		if p == player {
+			packet.YourPlayerId = len(packet.Players)
+		}
+		packet.Players = append(packet.Players, p)
+	}
+
+	serializedWorld, err := msgpack.Marshal(packet)
 	if err != nil {
 		panic(err)
 	}
@@ -182,10 +232,7 @@ func broadcastWorld() {
 		case <-player.readCancelled:
 			close(player.disconnected) // Disconnect player when read goroutine stops
 		default:
-			// Lazy serialization cause it's reduce server load a lot when nobody is connected
-			if serializedWorld == nil {
-				serializedWorld = serializeWorld()
-			}
+			serializedWorld = serializeWorld(player)
 			err := player.ws.WriteMessage(websocket.BinaryMessage, serializedWorld)
 			if err != nil {
 				log.Printf("Dropping client because of error: %#v", err)
@@ -194,12 +241,6 @@ func broadcastWorld() {
 		}
 	}
 }
-
-const maxWidth = 1000
-const maxHeight = 560
-
-var cardsScope = image.Rect(int(maxWidth*0.15), int(maxHeight*0.15), int(maxWidth*0.85), int(maxHeight*0.85))
-var fullScope = image.Rect(0, 0, maxWidth, maxHeight)
 
 func Shuffle(slice interface{}) {
 	rv := reflect.ValueOf(slice)
@@ -211,6 +252,12 @@ func Shuffle(slice interface{}) {
 	}
 }
 
+func getCardFromDeck() *Card {
+	card := deck[0]
+	deck = deck[1:]
+	return card
+}
+
 func initObjects() {
 	lastId := 0
 	nextId := func() int {
@@ -218,38 +265,40 @@ func initObjects() {
 		return lastId
 	}
 
-	allObjects = append(allObjects, &StaticObject{BaseObject{Id: nextId(), X: 100, Y: 100, Width: 10, Height: 10}})
-	allObjects = append(allObjects, &RotatingObject{BaseObject{Id: nextId(), Height: 2, Width: 2}, 100, 100, 50})
+	deskObjects = append(deskObjects, &StaticObject{BaseObject{Id: nextId(), X: 100, Y: 100, Width: 10, Height: 10}})
+	deskObjects = append(deskObjects, &RotatingObject{BaseObject{Id: nextId(), Height: 2, Width: 2}, 100, 100, 50})
 
-	var deck []*Card
 	var color CardColor
+	const deckX = 300
+	const deckY = 100
 	for color = 0; color < ColorCount; color++ {
 		deck = append(deck,
-			newCard(nextId(), 300, 100, color, 1, &cardsScope),
-			newCard(nextId(), 300, 100, color, 1, &cardsScope),
-			newCard(nextId(), 300, 100, color, 1, &cardsScope),
-			newCard(nextId(), 300, 100, color, 2, &cardsScope),
-			newCard(nextId(), 300, 100, color, 2, &cardsScope),
-			newCard(nextId(), 300, 100, color, 3, &cardsScope),
-			newCard(nextId(), 300, 100, color, 3, &cardsScope),
-			newCard(nextId(), 300, 100, color, 4, &cardsScope),
-			newCard(nextId(), 300, 100, color, 4, &cardsScope),
-			newCard(nextId(), 300, 100, color, 5, &cardsScope),
+			newCard(nextId(), deckX, deckY, color, 1, &cardsScope),
+			newCard(nextId(), deckX, deckY, color, 1, &cardsScope),
+			newCard(nextId(), deckX, deckY, color, 1, &cardsScope),
+			newCard(nextId(), deckX, deckY, color, 2, &cardsScope),
+			newCard(nextId(), deckX, deckY, color, 2, &cardsScope),
+			newCard(nextId(), deckX, deckY, color, 3, &cardsScope),
+			newCard(nextId(), deckX, deckY, color, 3, &cardsScope),
+			newCard(nextId(), deckX, deckY, color, 4, &cardsScope),
+			newCard(nextId(), deckX, deckY, color, 4, &cardsScope),
+			newCard(nextId(), deckX, deckY, color, 5, &cardsScope),
 		)
 	}
 	Shuffle(deck)
-	for _, c := range deck[:4] {
-		allObjects = append(allObjects, c)
+
+	for x := 0; x < 4; x++ {
+		deskObjects = append(deskObjects, getCardFromDeck())
 	}
 
 	for x := 0; x < 4; x++ {
-		allObjects = append(allObjects, newHintToken(nextId(), 300+40*x, 300))
+		deskObjects = append(deskObjects, newHintToken(nextId(), 300+40*x, 300))
 	}
 	for x := 0; x < 4; x++ {
-		allObjects = append(allObjects, newHintToken(nextId(), 300+40*x, 325))
+		deskObjects = append(deskObjects, newHintToken(nextId(), 300+40*x, 325))
 	}
 	for x := 0; x < 3; x++ {
-		allObjects = append(allObjects, newMistakeToken(nextId(), 320+40*x, 360))
+		deskObjects = append(deskObjects, newMistakeToken(nextId(), 320+40*x, 360))
 	}
 }
 

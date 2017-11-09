@@ -106,7 +106,8 @@ type Card struct {
 }
 
 func newCard(id, x, y int, color CardColor, number int, scope *image.Rectangle) *Card {
-	return &Card{BaseObject{Id: id, X: x, Y: y, Width: 100 * 0.8, Height: 140 * 0.8, scope: scope}, (int(color)+1)*10 + number, color, number}
+	const scale = 0.7
+	return &Card{BaseObject{Id: id, X: x, Y: y, Width: 100 * scale, Height: 140 * scale, scope: scope}, (int(color)+1)*10 + number, color, number}
 }
 
 type HintToken struct {

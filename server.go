@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+// TODO move HTML to a file!
 var homeTemplate = template.Must(template.New("").Parse(`<!DOCTYPE html>
 <html>
 <head>
@@ -19,11 +20,19 @@ var homeTemplate = template.Must(template.New("").Parse(`<!DOCTYPE html>
 <meta charset="utf-8">
 <body>
 <div id="top-bar">
-<div id="status"></div>
-<div id="debug"></div>
-<button id='btn-dc'>DC</button>
+	<div id="status"></div>
+	<div id="debug"></div>
+	<button id='btn-dc'>DC</button>
 </div>
-<div id="canvas"></div>
+<div id="canvas">
+	<div class="desk"></div>
+	<div class="player-0"></div>
+	<div class="player-1"></div>
+	<div class="player-2"></div>
+	<div class="player-3"></div>
+	<div class="player-4"></div>
+	<div class="player-5"></div>
+</div>
 <script>
 window.args = {
 	"ws_url": {{.}},
