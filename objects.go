@@ -32,7 +32,6 @@ func (o *BaseObject) getY() int {
 	return o.Y
 }
 
-
 func clamp(x, min, max int) int {
 	if x < min {
 		return min
@@ -100,14 +99,23 @@ const NumberMin = 1
 
 type Card struct {
 	BaseObject
-	SpiritId int
-	color    CardColor
-	number   int
+	SpiritId     int
+	color        CardColor
+	number       int
+	colorHinted  bool
+	numberHinted bool
 }
 
 func newCard(id, x, y int, color CardColor, number int, scope *image.Rectangle) *Card {
 	const scale = 0.7
-	return &Card{BaseObject{Id: id, X: x, Y: y, Width: 100 * scale, Height: 140 * scale, scope: scope}, (int(color)+1)*10 + number, color, number}
+	return &Card{
+		BaseObject{Id: id, X: x, Y: y, Width: 100 * scale, Height: 140 * scale, scope: scope},
+		(int(color)+1)*10 + number,
+		color,
+		number,
+		false,
+		false,
+	}
 }
 
 type HintToken struct {

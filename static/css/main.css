@@ -1,11 +1,17 @@
+body {
+    margin: 0;
+    padding: 0;
+}
+
 #canvas {
     width: 1000px;
     height: 560px;
     border: 1px solid red;
     position: relative;
+    margin-left: 100px;
 }
 
-.block {
+.obj_block, .obj_desk_item {
     width: 10px;
     height: 10px;
     position: absolute;
@@ -13,14 +19,50 @@
     transition: all 100ms ease-in;
     transform-origin: right bottom;
 }
-.block.no-spirit {
+
+.obj_block {
     background-color: black;
-    border-radius: 50%;
+    /*border-radius: 50%;*/
 }
-.block.spirit {
+
+.has-spirit {
     background-size: cover;
 }
 
 #debug {
     font-family: monospace;
+}
+
+.player-others, .player-self {
+    height: 120px;
+    width: calc(100% - 500px);
+    position: absolute;
+
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+}
+
+.player-self {
+    left: 250px;
+    bottom: 0;
+    outline: 1px solid pink;
+}
+
+.player-2 {
+    transform: rotate(-0.25turn) scale(0.5) translateX(-100%);
+    transform-origin: left top;
+
+    left: 0;
+    top: 0;
+    outline: 1px solid darkgreen;
+}
+
+.player-1 {
+    transform: rotate(-0.25turn) scale(0.5) translateX(calc(-200% + -50px));
+    transform-origin: left top;
+
+    left: 0;
+    top: 0;
+    outline: 1px solid lightblue;
 }

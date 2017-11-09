@@ -26,12 +26,12 @@ var homeTemplate = template.Must(template.New("").Parse(`<!DOCTYPE html>
 </div>
 <div id="canvas">
 	<div class="desk"></div>
-	<div class="player-0"></div>
-	<div class="player-1"></div>
-	<div class="player-2"></div>
-	<div class="player-3"></div>
-	<div class="player-4"></div>
-	<div class="player-5"></div>
+	<div class="player-0 player-self"></div>
+	<div class="player-1 player-others"></div>
+	<div class="player-2 player-others"></div>
+	<div class="player-3 player-others"></div>
+	<div class="player-4 player-others"></div>
+	<div class="player-5 player-others"></div>
 </div>
 <script>
 window.args = {

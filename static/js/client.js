@@ -55,12 +55,14 @@ window.addEventListener("load", function() {
         if (!$o) {
             $o = document.createElement('div')
             $o.id = domId
-            $o.className = 'block'
+            $o.className = 'obj_' + obj.Class
             $o.style.width = obj.Width + 'px'
             $o.style.height = obj.Height + 'px'
 
             if (obj.SpiritId) {
-                $o.classList.add('spirit')
+                $o.classList.add('has-spirit')
+            }
+            if (obj.Class == 'desk_item') {
                 $o.draggable = true
                 $o.ondragstart = ev => {
                     dragging = {
@@ -73,9 +75,8 @@ window.addEventListener("load", function() {
                 $o.onclick = ev => {
                     flipItem(obj.Id)
                 }
-            } else {
-                $o.classList.add('no-spirit')
             }
+
             $canvas.querySelector('.' + scope).appendChild($o)
         }
         return $o
@@ -90,6 +91,11 @@ window.addEventListener("load", function() {
 
         // TODO support deleting div of removed objects
         world.DeskObjects.forEach(obj => {
+            if (obj.SpiritId) {
+                obj.Class = 'desk_item'
+            } else {
+                obj.Class = 'block'
+            }
             var $o = getObjectDiv(obj, 'desk')
 
             $o.style.top = obj.Y + 'px'
@@ -101,10 +107,8 @@ window.addEventListener("load", function() {
         })
 
         world.Players.forEach((p, playerIndex) => p.Cards.forEach(obj => {
+            obj.Class = 'player_card'
             var $o = getObjectDiv(obj, 'player-' + playerIndex)
-
-            $o.style.top = obj.Y + 'px'
-            $o.style.left = obj.X + 'px'
 
             if (obj.SpiritId) {
                 $o.style.backgroundImage = 'url("/static/img/spirits/' + obj.SpiritId + '.png")'
