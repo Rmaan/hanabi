@@ -82,10 +82,8 @@ window.addEventListener("load", function() {
         return $o
     }
 
-    var x = 0
     function drawWorld(world) {
-        // console.log('drawing', world)
-        x++
+        console.log('drawing', world)
 
         $status.textContent = world.TickNumber;
 
@@ -114,7 +112,6 @@ window.addEventListener("load", function() {
                 $o.style.backgroundImage = 'url("/static/img/spirits/' + obj.SpiritId + '.png")'
             }
         }))
-        console.log(world)
     }
 
     var ws = new WebSocket(window.args.ws_url);

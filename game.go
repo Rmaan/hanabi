@@ -29,6 +29,8 @@ var deck []*Card
 
 var tickNumber int
 var passedSeconds float64 // It's tickNumber / ticksPerSecond
+var lastActivityTick = 0
+const inactivityTickCount = 200  // After this many ticks without commands/join, server will stop broadcasting until another command arrives.
 
 type Player struct {
 	ws            *websocket.Conn
@@ -73,6 +75,7 @@ func enqueuePlayerCommands(player *Player) {
 func joinNewPlayers() {
 	for len(newClients) > 0 {
 		ws := <-newClients
+		lastActivityTick = tickNumber
 		player := &Player{
 			ws:            ws,
 			name:          fmt.Sprintf("Player %d", len(playerList)+1),
@@ -136,6 +139,7 @@ func processCommands() {
 
 	for len(newCommands) > 0 {
 		c := <-newCommands
+		lastActivityTick = tickNumber
 		err := json.Unmarshal(c.data, &command)
 		if err != nil {
 			log.Printf("Invalid msg received from %v", c.player)
@@ -190,13 +194,15 @@ func serializeWorld(player *Player) []byte {
 		DeskObjects  []HasShape
 		TickNumber   int
 		Players      []*Player
-		YourPlayerId int
 	}{
 		deskObjects,
 		tickNumber,
 		nil,
-		-1,
 	}
+
+
+	playerId := -1
+	var players []*Player
 
 	// Don't serialize disconnected players. Find user's ID.
 	for _, p := range playerList {
@@ -206,10 +212,13 @@ func serializeWorld(player *Player) []byte {
 		default:
 		}
 		if p == player {
-			packet.YourPlayerId = len(packet.Players)
+			playerId = len(players)
 		}
-		packet.Players = append(packet.Players, p)
+		players = append(players, p)
 	}
+	// Order players array so each player thinks he is the first player.
+	players = append(players[playerId:], players[:playerId]...)
+	packet.Players = players
 
 	serializedWorld, err := msgpack.Marshal(packet)
 	if err != nil {
@@ -219,6 +228,9 @@ func serializeWorld(player *Player) []byte {
 }
 
 func broadcastWorld() {
+	if tickNumber -lastActivityTick > inactivityTickCount {
+		return
+	}
 	var serializedWorld []byte
 
 	for _, player := range playerList {
