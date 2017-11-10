@@ -63,6 +63,16 @@ window.addEventListener("load", function() {
         sendCommand('flip', {'TargetId': objId})
     }
 
+    function hintPlayer(playerId, isColor, value) {
+        sendCommand('hint', {
+            'PlayerId': playerId,
+            'IsColor': isColor,
+            'Value': value,
+        })
+    }
+
+    window.hint = hintPlayer
+
     function getObjectDiv(obj, scope) {
         var domId = 'game-id-' + obj.Id
         var $o = document.getElementById(domId)

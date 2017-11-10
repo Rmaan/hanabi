@@ -183,6 +183,41 @@ func processCommands() {
 			if obj, ok := obj.(Flipper); ok {
 				obj.flip()
 			}
+		} else if command.Type == "hint" {
+			hintCommand := struct {
+				PlayerId int
+				IsColor bool
+				Value int
+			}{}
+
+			err = json.Unmarshal(command.Params, &hintCommand)
+			if err != nil {
+				log.Printf("err in hint params %v `%s`", err, command.Params)
+				continue
+			}
+			hintCommand.Value = clamp(hintCommand.Value, NumberMin, NumberMax)
+			hintCommand.PlayerId = clamp(hintCommand.PlayerId, 1, len(playerList) - 1)  // Can't hint himself!
+
+			thisPlayerIndex := -1
+			for idx, p := range playerList {
+				if p == c.player {
+					thisPlayerIndex = idx
+				}
+			}
+			// Translate to absolute ID space
+			hintCommand.PlayerId = (hintCommand.PlayerId + thisPlayerIndex) % len(playerList)
+			targetPlayer := playerList[hintCommand.PlayerId]
+			for _, c := range targetPlayer.Cards {
+				if hintCommand.IsColor {
+					if int(c.Color) == hintCommand.Value {
+						c.ColorHinted = true
+					}
+				} else {
+					if c.Number == hintCommand.Value {
+						c.NumberHinted = true
+					}
+				}
+			}
 		} else {
 			log.Printf("unknown command type %v", command.Type)
 		}
@@ -204,7 +239,6 @@ func serializeWorld(player *Player) []byte {
 		tickNumber,
 		nil,
 	}
-
 
 	playerId := -1
 	var players []*Player
@@ -229,8 +263,12 @@ func serializeWorld(player *Player) []byte {
 	hiddenCards := []*Card(nil)
 	for _, c := range player.Cards {
 		copy := *c  // Shallow copy card
-		copy.Color = 0
-		copy.Number = 0
+		if !c.ColorHinted {
+			copy.Color = 0
+		}
+		if !c.NumberHinted {
+			copy.Number = 0
+		}
 		hiddenCards = append(hiddenCards, &copy)
 	}
 	tmp := player.Cards
