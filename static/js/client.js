@@ -5,7 +5,6 @@
 
     function myVectorUnpacker(buffer) {
         var array = msgpack.decode(buffer);
-        console.log(array);
         var obj = {};
         var fields = ['Id', 'X', 'Y', 'Width', 'Height', 'Color', 'ColorHinted', 'Number', 'NumberHinted']
         array.forEach((x, idx) => obj[fields[idx]] = x)
@@ -120,7 +119,7 @@ window.addEventListener("load", function() {
             obj.Class = 'player_card'
             var $o = getObjectDiv(obj, 'player-' + playerIndex)
 
-            $o.style.backgroundImage = 'url("/static/img/spirits/' + (obj.Color + 1) + obj.Number + '.png")'
+            $o.style.backgroundImage = 'url("/static/img/spirits/' + obj.Color + obj.Number + '.png")'
         }))
     }
 

@@ -99,8 +99,8 @@ const NumberMin = 1
 
 type Card struct {
 	BaseObject
-	Color        CardColor
-	Number       int
+	Color        CardColor // Color == 0 means unknown color (to client)
+	Number       int       // Number == 0 means unknown number
 	ColorHinted  bool
 	NumberHinted bool
 }

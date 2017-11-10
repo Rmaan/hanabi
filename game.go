@@ -225,7 +225,20 @@ func serializeWorld(player *Player) []byte {
 	players = append(players[playerId:], players[:playerId]...)
 	packet.Players = players
 
+	// Conceal player cards' number/color
+	hiddenCards := []*Card(nil)
+	for _, c := range player.Cards {
+		copy := *c  // Shallow copy card
+		copy.Color = 0
+		copy.Number = 0
+		hiddenCards = append(hiddenCards, &copy)
+	}
+	tmp := player.Cards
+	player.Cards = hiddenCards
+
 	serializedWorld, err := msgpack.Marshal(packet)
+	player.Cards = tmp
+
 	if err != nil {
 		panic(err)
 	}
@@ -288,7 +301,7 @@ func initObjects() {
 	var color CardColor
 	const deckX = 300
 	const deckY = 100
-	for color = 0; color < ColorCount; color++ {
+	for color = 1; color <= ColorCount; color++ {
 		deck = append(deck,
 			newCard(nextId(), deckX, deckY, color, 1, &cardsScope),
 			newCard(nextId(), deckX, deckY, color, 1, &cardsScope),
