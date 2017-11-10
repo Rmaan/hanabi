@@ -65,18 +65,15 @@ window.addEventListener("load", function() {
     }
 
     function getObjectDiv(obj, scope) {
-        var domId = 'game-obj-' + obj.Id
+        var domId = 'game-id-' + obj.Id
         var $o = document.getElementById(domId)
         if (!$o) {
             $o = document.createElement('div')
             $o.id = domId
-            $o.className = 'obj_' + obj.Class
+            $o.classList.add('obj_' + obj.Class, 'game-obj')
             $o.style.width = obj.Width + 'px'
             $o.style.height = obj.Height + 'px'
 
-            if (obj.SpiritId) {
-                $o.classList.add('has-spirit')
-            }
             if (obj.Class == 'desk_item') {
                 $o.draggable = true
                 $o.ondragstart = ev => {
@@ -123,9 +120,7 @@ window.addEventListener("load", function() {
             obj.Class = 'player_card'
             var $o = getObjectDiv(obj, 'player-' + playerIndex)
 
-            if (obj.SpiritId) {
-                $o.style.backgroundImage = 'url("/static/img/spirits/' + obj.SpiritId + '.png")'
-            }
+            $o.style.backgroundImage = 'url("/static/img/spirits/' + (obj.Color + 1) + obj.Number + '.png")'
         }))
     }
 

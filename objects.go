@@ -99,18 +99,16 @@ const NumberMin = 1
 
 type Card struct {
 	BaseObject
-	SpiritId     int
-	color        CardColor
-	number       int
-	colorHinted  bool
-	numberHinted bool
+	Color        CardColor
+	Number       int
+	ColorHinted  bool
+	NumberHinted bool
 }
 
 func newCard(id, x, y int, color CardColor, number int, scope *image.Rectangle) *Card {
 	const scale = 0.7
 	return &Card{
 		BaseObject{Id: id, X: x, Y: y, Width: 100 * scale, Height: 140 * scale, scope: scope},
-		(int(color)+1)*10 + number,
 		color,
 		number,
 		false,

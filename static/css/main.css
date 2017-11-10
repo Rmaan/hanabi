@@ -25,7 +25,7 @@ body {
     /*border-radius: 50%;*/
 }
 
-.has-spirit {
+.game-obj {
     background-size: cover;
 }
 
@@ -43,21 +43,11 @@ body {
     align-items: center;
 }
 
-.player-self {
+.player-0 {
     left: 250px;
     bottom: 0;
     outline: 1px solid pink;
 }
-
-.player-2 {
-    transform: rotate(-0.25turn) scale(0.5) translateX(-100%);
-    transform-origin: left top;
-
-    left: 0;
-    top: 0;
-    outline: 1px solid darkgreen;
-}
-
 .player-1 {
     transform: rotate(-0.25turn) scale(0.5) translateX(calc(-200% + -50px));
     transform-origin: left top;
@@ -66,3 +56,28 @@ body {
     top: 0;
     outline: 1px solid lightblue;
 }
+.player-2 {
+    transform: rotate(-0.25turn) scale(0.5) translateX(-100%);
+    transform-origin: left top;
+
+    left: 0;
+    top: 0;
+    outline: 1px solid darkgreen;
+}
+.player-3 {
+    transform: rotate(0.25turn) scale(0.5) translateX(100%);
+    transform-origin: right top;
+
+    right: 0;
+    top: 0;
+    outline: 1px solid darkgreen;
+}
+.player-4 {
+    transform: rotate(0.25turn) scale(0.5) translateX(calc(200% + 50px));
+    transform-origin: right top;
+
+    right: 0;
+    top: 0;
+    outline: 1px solid darkgreen;
+}
+
