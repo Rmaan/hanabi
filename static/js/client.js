@@ -1,3 +1,18 @@
+(function() {
+    // var codec = msgpack.createCodec();
+    msgpack.codec.preset.addExtUnpacker(0x00, myVectorUnpacker);
+
+
+    function myVectorUnpacker(buffer) {
+        var array = msgpack.decode(buffer);
+        console.log(array);
+        var obj = {};
+        var fields = ['Id', 'X', 'Y', 'Width', 'Height', 'Color', 'ColorHinted', 'Number', 'NumberHinted']
+        array.forEach((x, idx) => obj[fields[idx]] = x)
+        return obj
+    }
+})();
+
 window.addEventListener("load", function() {
     var $canvas = document.getElementById('canvas');
     var $status = document.getElementById('status');

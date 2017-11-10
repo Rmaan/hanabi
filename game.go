@@ -189,6 +189,11 @@ func processCommands() {
 	}
 }
 
+func (p *Card) EncodeMsgpack(enc *msgpack.Encoder) error {
+	return enc.Encode([]interface{}{p.Id, p.X, p.Y, p.Width, p.Height, p.Color, p.ColorHinted, p.Number, p.NumberHinted})
+}
+
+
 func serializeWorld(player *Player) []byte {
 	packet := struct {
 		DeskObjects  []HasShape
@@ -318,6 +323,9 @@ func initObjects() {
 func gameLoop(tickPerSecond int) {
 	tickInterval := time.Duration(time.Second.Nanoseconds() / int64(tickPerSecond))
 	fmt.Println("Tick per sec", tickPerSecond, "each", tickInterval)
+
+
+	msgpack.RegisterExt(0, new(Card))
 
 	initObjects()
 
