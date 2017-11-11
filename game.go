@@ -30,7 +30,8 @@ var deck []*Card
 var tickNumber int
 var passedSeconds float64 // It's tickNumber / ticksPerSecond
 var lastActivityTick = 0
-const inactivityTickCount = 200  // After this many ticks without commands/join, server will stop broadcasting until another command arrives.
+
+const inactivityTickCount = 200 // After this many ticks without commands/join, server will stop broadcasting until another command arrives.
 
 type Player struct {
 	ws            *websocket.Conn
@@ -39,7 +40,7 @@ type Player struct {
 	readCancelled chan struct{} // Websocket reader goroutine is the sender
 	disconnected  chan struct{} // Game goroutine is the sender
 	// TODO change disconnected to boolean and change related goroutines.
-	Cards         []*Card
+	Cards []*Card
 }
 
 type playerCommand struct {
@@ -186,8 +187,8 @@ func processCommands() {
 		} else if command.Type == "hint" {
 			hintCommand := struct {
 				PlayerId int
-				IsColor bool
-				Value int
+				IsColor  bool
+				Value    int
 			}{}
 
 			err = json.Unmarshal(command.Params, &hintCommand)
@@ -196,7 +197,7 @@ func processCommands() {
 				continue
 			}
 			hintCommand.Value = clamp(hintCommand.Value, NumberMin, NumberMax)
-			hintCommand.PlayerId = clamp(hintCommand.PlayerId, 1, len(playerList) - 1)  // Can't hint himself!
+			hintCommand.PlayerId = clamp(hintCommand.PlayerId, 1, len(playerList)-1) // Can't hint himself!
 
 			thisPlayerIndex := -1
 			for idx, p := range playerList {
@@ -218,8 +219,20 @@ func processCommands() {
 					}
 				}
 			}
+		} else if command.Type == "discard" {
+			discardCommand := struct {
+				CardIndex    int
+			}{}
+			err = json.Unmarshal(command.Params, &discardCommand)
+			if err != nil {
+				log.Printf("err in discard params %v `%s`", err, command.Params)
+				continue
+			}
+			discardCommand.CardIndex = clamp(discardCommand.CardIndex, 0, len(c.player.Cards) - 1)
+			// Put the new card at the end to be consistent with UI
+			c.player.Cards = append(append(c.player.Cards[0:discardCommand.CardIndex], c.player.Cards[discardCommand.CardIndex + 1:]...), getCardFromDeck())
 		} else {
-			log.Printf("unknown command type %v", command.Type)
+		log.Printf("unknown command type %v", command.Type)
 		}
 	}
 }
@@ -228,12 +241,11 @@ func (p *Card) EncodeMsgpack(enc *msgpack.Encoder) error {
 	return enc.Encode([]interface{}{p.Id, p.X, p.Y, p.Width, p.Height, p.Color, p.ColorHinted, p.Number, p.NumberHinted})
 }
 
-
 func serializeWorld(player *Player) []byte {
 	packet := struct {
-		DeskObjects  []HasShape
-		TickNumber   int
-		Players      []*Player
+		DeskObjects []HasShape
+		TickNumber  int
+		Players     []*Player
 	}{
 		deskObjects,
 		tickNumber,
@@ -262,7 +274,7 @@ func serializeWorld(player *Player) []byte {
 	// Conceal player cards' number/color
 	hiddenCards := []*Card(nil)
 	for _, c := range player.Cards {
-		copy := *c  // Shallow copy card
+		copy := *c // Shallow copy card
 		if !c.ColorHinted {
 			copy.Color = 0
 		}
@@ -284,7 +296,7 @@ func serializeWorld(player *Player) []byte {
 }
 
 func broadcastWorld() {
-	if tickNumber -lastActivityTick > inactivityTickCount {
+	if tickNumber-lastActivityTick > inactivityTickCount {
 		return
 	}
 	var serializedWorld []byte
@@ -329,9 +341,9 @@ func getCardFromDeck() *Card {
 func initObjects() {
 	lastId := 0
 	nextId := func() int {
-	lastId++
-	return lastId
-}
+		lastId++
+		return lastId
+	}
 
 	deskObjects = append(deskObjects, &StaticObject{BaseObject{Id: nextId(), X: 100, Y: 100, Width: 10, Height: 10}})
 	deskObjects = append(deskObjects, &RotatingObject{BaseObject{Id: nextId(), Height: 2, Width: 2}, 100, 100, 50})
@@ -374,7 +386,6 @@ func initObjects() {
 func gameLoop(tickPerSecond int) {
 	tickInterval := time.Duration(time.Second.Nanoseconds() / int64(tickPerSecond))
 	fmt.Println("Tick per sec", tickPerSecond, "each", tickInterval)
-
 
 	msgpack.RegisterExt(0, new(Card))
 

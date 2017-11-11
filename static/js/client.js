@@ -71,7 +71,14 @@ window.addEventListener("load", function() {
         })
     }
 
+    function discardCard(cardIndex) {
+        sendCommand('discard', {
+            'CardIndex': cardIndex
+        })
+    }
+
     window.hint = hintPlayer
+    window.discard = discardCard
 
     function getObjectDiv(obj, scope) {
         var domId = 'game-id-' + obj.Id
@@ -80,6 +87,7 @@ window.addEventListener("load", function() {
             $o = document.createElement('div')
             $o.id = domId
             $o.classList.add('obj_' + obj.Class, 'game-obj')
+            $o.setAttribute('data-game-class', obj.Class)
             $o.style.width = obj.Width + 'px'
             $o.style.height = obj.Height + 'px'
 
@@ -108,6 +116,11 @@ window.addEventListener("load", function() {
 
         $status.textContent = world.TickNumber;
 
+        var allObjectsClass = {}
+        document.querySelectorAll('.game-obj').forEach(el => {
+            allObjectsClass[el.id] = el.getAttribute('data-game-class')
+        })
+
         // TODO support deleting div of removed objects
         world.DeskObjects.forEach(obj => {
             if (obj.SpiritId) {
@@ -121,7 +134,7 @@ window.addEventListener("load", function() {
             $o.style.left = obj.X + 'px'
 
             if (obj.SpiritId) {
-                $o.style.backgroundImage = 'url("/static/img/spirits/' + obj.SpiritId + '.png")'
+                $o.style.backgroundImage = `url("/static/img/spirits/${obj.SpiritId}.png")`
             }
         })
 
@@ -129,8 +142,17 @@ window.addEventListener("load", function() {
             obj.Class = 'player_card'
             var $o = getObjectDiv(obj, 'player-' + playerIndex)
 
-            $o.style.backgroundImage = 'url("/static/img/spirits/' + obj.Color + obj.Number + '.png")'
+            $o.style.backgroundImage = `url("/static/img/spirits/${obj.Color}${obj.Number}.png")`
+
+            delete allObjectsClass[$o.id] // Remove them from dict so they remain in DOM
         }))
+
+        // Remove all non-networked cards from DOM
+        Object.keys(allObjectsClass).forEach(id => {
+            if (allObjectsClass[id] == 'player_card') {
+                document.getElementById(id).remove()
+            }
+        })
     }
 
     var ws = new WebSocket(window.args.ws_url);
