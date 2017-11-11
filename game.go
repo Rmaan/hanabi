@@ -14,7 +14,7 @@ import (
 
 var deskObjects = make([]HasShape, 0)
 var playerList = make([]*Player, 0)
-var newCommands = make(chan playerCommand, 100)
+var newCommands = make(chan playerCommandRaw, 100)
 
 // Positioning
 const maxWidth = 1000
@@ -43,7 +43,7 @@ type Player struct {
 	Cards []*Card
 }
 
-type playerCommand struct {
+type playerCommandRaw struct {
 	player *Player
 	data   []byte
 }
@@ -67,7 +67,7 @@ func enqueuePlayerCommands(player *Player) {
 				return
 
 			} else {
-				newCommands <- playerCommand{player, message}
+				newCommands <- playerCommandRaw{player, message}
 			}
 		}
 	}
@@ -106,7 +106,7 @@ func joinNewPlayers() {
 func doTick() {
 	joinNewPlayers()
 
-	processCommands()
+	processAllCommands()
 
 	for _, obj := range deskObjects {
 		obj.tick()
@@ -115,124 +115,141 @@ func doTick() {
 	broadcastWorld()
 }
 
-func processCommands() {
-	command := struct {
-		Type   string          `json:"type"`
-		Params json.RawMessage `json:"params"`
-	}{}
+func findObjById(id int) (HasShape, error) {
+	for _, x := range deskObjects {
+		if x.getId() == id {
+			return x, nil
+		}
+	}
 
-	findObjById := func(id int) (HasShape, error) {
-		for _, x := range deskObjects {
+	for _, p := range playerList {
+		for _, x := range p.Cards {
 			if x.getId() == id {
 				return x, nil
 			}
 		}
+	}
+	return nil, fmt.Errorf("Invalid object id")
+}
 
-		for _, p := range playerList {
-			for _, x := range p.Cards {
-				if x.getId() == id {
-					return x, nil
+func doCommand(player *Player, commandType string, params json.RawMessage) error {
+	if commandType == "move" {
+		moveCommand := struct {
+			X, Y, TargetId int
+		}{}
+
+		err := json.Unmarshal(params, &moveCommand)
+		if err != nil {
+			return fmt.Errorf("err in params %v `%s`", err, params)
+		}
+		log.Printf("move command %+v", moveCommand)
+
+		obj, err := findObjById(moveCommand.TargetId)
+		if err != nil {
+			return err
+		}
+		if obj, ok := obj.(Mover); ok {
+			obj.setX(moveCommand.X)
+			obj.setY(moveCommand.Y)
+		}
+	} else if commandType == "flip" {
+		flipCommand := struct {
+			TargetId int
+		}{}
+
+		err := json.Unmarshal(params, &flipCommand)
+		if err != nil {
+			return fmt.Errorf("err in params %v `%s`", err, params)
+		}
+		log.Printf("flip command %+v", flipCommand)
+		obj, err := findObjById(flipCommand.TargetId)
+		if err != nil {
+			return err
+		}
+		if obj, ok := obj.(Flipper); ok {
+			obj.flip()
+		}
+	} else if commandType == "hint" {
+		hintCommand := struct {
+			PlayerId int
+			IsColor  bool
+			Value    int
+		}{}
+
+		err := json.Unmarshal(params, &hintCommand)
+		if err != nil {
+			return fmt.Errorf("err in params %v `%s`", err, params)
+		}
+		hintCommand.Value = clamp(hintCommand.Value, NumberMin, NumberMax)
+		hintCommand.PlayerId = clamp(hintCommand.PlayerId, 1, len(playerList)-1) // Can't hint himself!
+
+		thisPlayerIndex := -1
+		for idx, p := range playerList {
+			if p == player {
+				thisPlayerIndex = idx
+			}
+		}
+		// Translate to absolute ID space
+		hintCommand.PlayerId = (hintCommand.PlayerId + thisPlayerIndex) % len(playerList)
+		targetPlayer := playerList[hintCommand.PlayerId]
+		for _, c := range targetPlayer.Cards {
+			if hintCommand.IsColor {
+				if int(c.Color) == hintCommand.Value {
+					c.ColorHinted = true
+				}
+			} else {
+				if c.Number == hintCommand.Value {
+					c.NumberHinted = true
 				}
 			}
 		}
-		return nil, fmt.Errorf("Invalid id")
+	} else if commandType == "discard" {
+		discardCommand := struct {
+			CardIndex    int
+		}{}
+		err := json.Unmarshal(params, &discardCommand)
+		if err != nil {
+			return fmt.Errorf("err in params %v `%s`", err, params)
+		}
+		discardCommand.CardIndex = clamp(discardCommand.CardIndex, 0, len(player.Cards) - 1)
+		// Put the new card at the end to be consistent with UI
+		player.Cards = append(append(player.Cards[0:discardCommand.CardIndex], player.Cards[discardCommand.CardIndex + 1:]...), getCardFromDeck())
+	} else if commandType == "play" {
+		playCommand := struct {
+			CardIndex    int
+		}{}
+		err := json.Unmarshal(params, &playCommand)
+		if err != nil {
+			return fmt.Errorf("err in params %v `%s`", err, params)
+		}
+		playCommand.CardIndex = clamp(playCommand.CardIndex, 0, len(player.Cards) - 1)
+		// Put the new card at the end to be consistent with UI
+		player.Cards = append(append(player.Cards[0:playCommand.CardIndex], player.Cards[playCommand.CardIndex + 1:]...), getCardFromDeck())
+	} else {
+		return fmt.Errorf("unknown command type %v", commandType)
 	}
+	return nil
+}
 
+func processAllCommands() {
 	for len(newCommands) > 0 {
 		c := <-newCommands
 		lastActivityTick = tickNumber
+
+		command := struct {
+			Type   string          `json:"type"`
+			Params json.RawMessage `json:"params"`
+		}{}
+
 		err := json.Unmarshal(c.data, &command)
 		if err != nil {
-			log.Printf("Invalid msg received from %v", c.player)
+			log.Printf("Invalid msg received from %+v", c.player)
 			continue
 		}
-		if command.Type == "move" {
-			moveCommand := struct {
-				X, Y, TargetId int
-			}{}
 
-			err = json.Unmarshal(command.Params, &moveCommand)
-			if err != nil {
-				log.Printf("err in move params %v `%s`", err, command.Params)
-				continue
-			}
-			log.Printf("move command %+v", moveCommand)
-
-			obj, err := findObjById(moveCommand.TargetId)
-			if err != nil {
-				continue
-			}
-			if obj, ok := obj.(Mover); ok {
-				obj.setX(moveCommand.X)
-				obj.setY(moveCommand.Y)
-			}
-		} else if command.Type == "flip" {
-			flipCommand := struct {
-				TargetId int
-			}{}
-
-			err = json.Unmarshal(command.Params, &flipCommand)
-			if err != nil {
-				log.Printf("err in flip params %v `%s`", err, command.Params)
-				continue
-			}
-			log.Printf("flip command %+v", flipCommand)
-			obj, err := findObjById(flipCommand.TargetId)
-			if err != nil {
-				continue
-			}
-			if obj, ok := obj.(Flipper); ok {
-				obj.flip()
-			}
-		} else if command.Type == "hint" {
-			hintCommand := struct {
-				PlayerId int
-				IsColor  bool
-				Value    int
-			}{}
-
-			err = json.Unmarshal(command.Params, &hintCommand)
-			if err != nil {
-				log.Printf("err in hint params %v `%s`", err, command.Params)
-				continue
-			}
-			hintCommand.Value = clamp(hintCommand.Value, NumberMin, NumberMax)
-			hintCommand.PlayerId = clamp(hintCommand.PlayerId, 1, len(playerList)-1) // Can't hint himself!
-
-			thisPlayerIndex := -1
-			for idx, p := range playerList {
-				if p == c.player {
-					thisPlayerIndex = idx
-				}
-			}
-			// Translate to absolute ID space
-			hintCommand.PlayerId = (hintCommand.PlayerId + thisPlayerIndex) % len(playerList)
-			targetPlayer := playerList[hintCommand.PlayerId]
-			for _, c := range targetPlayer.Cards {
-				if hintCommand.IsColor {
-					if int(c.Color) == hintCommand.Value {
-						c.ColorHinted = true
-					}
-				} else {
-					if c.Number == hintCommand.Value {
-						c.NumberHinted = true
-					}
-				}
-			}
-		} else if command.Type == "discard" {
-			discardCommand := struct {
-				CardIndex    int
-			}{}
-			err = json.Unmarshal(command.Params, &discardCommand)
-			if err != nil {
-				log.Printf("err in discard params %v `%s`", err, command.Params)
-				continue
-			}
-			discardCommand.CardIndex = clamp(discardCommand.CardIndex, 0, len(c.player.Cards) - 1)
-			// Put the new card at the end to be consistent with UI
-			c.player.Cards = append(append(c.player.Cards[0:discardCommand.CardIndex], c.player.Cards[discardCommand.CardIndex + 1:]...), getCardFromDeck())
-		} else {
-		log.Printf("unknown command type %v", command.Type)
+		err = doCommand(c.player, command.Type, command.Params)
+		if err != nil {
+			log.Printf("error in doing command: %s", err.Error())
 		}
 	}
 }

@@ -77,8 +77,15 @@ window.addEventListener("load", function() {
         })
     }
 
+    function playCard(cardIndex) {
+        sendCommand('play', {
+            'CardIndex': cardIndex
+        })
+    }
+
     window.hint = hintPlayer
     window.discard = discardCard
+    window.play = playCard
 
     function getObjectDiv(obj, scope) {
         var domId = 'game-id-' + obj.Id
