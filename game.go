@@ -26,6 +26,9 @@ var playerScope = image.Rect(maxWidth*playerMargin, maxHeight*(1-playerMargin), 
 var fullScope = image.Rect(0, 0, maxWidth, maxHeight)
 
 var deck []*Card
+var successfulPlayedCount [ColorCount]int
+var unsuccessfulPlayedCount int
+var discardedCount int
 
 var tickNumber int
 var passedSeconds float64 // It's tickNumber / ticksPerSecond
@@ -214,6 +217,7 @@ func doCommand(player *Player, commandType string, params json.RawMessage) error
 		discardCommand.CardIndex = clamp(discardCommand.CardIndex, 0, len(player.Cards) - 1)
 		// Put the new card at the end to be consistent with UI
 		player.Cards = append(append(player.Cards[0:discardCommand.CardIndex], player.Cards[discardCommand.CardIndex + 1:]...), getCardFromDeck())
+		discardedCount++
 	} else if commandType == "play" {
 		playCommand := struct {
 			CardIndex    int
@@ -223,8 +227,15 @@ func doCommand(player *Player, commandType string, params json.RawMessage) error
 			return fmt.Errorf("err in params %v `%s`", err, params)
 		}
 		playCommand.CardIndex = clamp(playCommand.CardIndex, 0, len(player.Cards) - 1)
+		card := player.Cards[playCommand.CardIndex]
 		// Put the new card at the end to be consistent with UI
 		player.Cards = append(append(player.Cards[0:playCommand.CardIndex], player.Cards[playCommand.CardIndex + 1:]...), getCardFromDeck())
+
+		if successfulPlayedCount[card.Color - 1] == card.Number - 1 {
+			successfulPlayedCount[card.Color - 1]++
+		} else {
+			unsuccessfulPlayedCount++
+		}
 	} else {
 		return fmt.Errorf("unknown command type %v", commandType)
 	}
@@ -263,10 +274,16 @@ func serializeWorld(player *Player) []byte {
 		DeskObjects []HasShape
 		TickNumber  int
 		Players     []*Player
+		SuccessfulPlayedCount [5]int
+		UnsuccessfulPlayedCount int
+		DiscardedCount int
 	}{
 		deskObjects,
 		tickNumber,
 		nil,
+		successfulPlayedCount,
+		unsuccessfulPlayedCount,
+		discardedCount,
 	}
 
 	playerId := -1

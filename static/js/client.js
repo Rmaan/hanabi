@@ -121,7 +121,7 @@ window.addEventListener("load", function() {
     function drawWorld(world) {
         console.log('drawing', world)
 
-        $status.textContent = world.TickNumber;
+        $status.textContent = `${world.TickNumber} ${world.SuccessfulPlayedCount} fail=${world.UnsuccessfulPlayedCount} discard=${world.DiscardedCount}`;
 
         var allObjectsClass = {}
         document.querySelectorAll('.game-obj').forEach(el => {
