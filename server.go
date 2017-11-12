@@ -19,21 +19,6 @@ var homeTemplate = template.Must(template.New("").Parse(`<!DOCTYPE html>
 </head>
 <meta charset="utf-8">
 <body>
-<div id="top-bar">
-	<div id="status"></div>
-	<div id="debug"></div>
-	<button id='btn-dc'>DC</button>
-</div>
-<div id="canvas">
-	<div class="desk"></div>
-	<div class="hanabis"></div>
-	<div class="player-0 player-self"></div>
-	<div class="player-1 player-others"></div>
-	<div class="player-2 player-others"></div>
-	<div class="player-3 player-others"></div>
-	<div class="player-4 player-others"></div>
-	<div class="player-5 player-others"></div>
-</div>
 <script>
 window.args = {
 	"ws_url": {{.}},

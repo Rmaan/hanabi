@@ -3,6 +3,20 @@ body {
     padding: 0;
 }
 
+.hide {
+    display: none !important;
+}
+
+#status {
+    position: absolute;
+    top: 20%;
+    left: calc(50% - 400px / 2);
+    width: 400px;
+    background: #ddd;
+    padding: 5px;
+    border: 1px solid #bfbfbf;
+}
+
 #canvas {
     width: 1000px;
     height: 560px;
@@ -47,7 +61,7 @@ body {
     margin-top: -10px;
 }
 
-.player-others, .player-self {
+.players {
     height: 120px;
     width: calc(100% - 500px);
     position: absolute;
@@ -55,6 +69,20 @@ body {
     display: flex;
     justify-content: space-around;
     align-items: center;
+}
+
+.command-pallet {
+    position: absolute;
+    left: calc(50% - 140px / 2);
+    bottom: 130px;
+    width: 140px;
+
+    display: flex;
+    justify-content: space-between;
+}
+.command-pallet button {
+    padding: 7px;
+    width: 60px;
 }
 
 .player-0 {

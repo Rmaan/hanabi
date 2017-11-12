@@ -13,11 +13,33 @@
 })();
 
 window.addEventListener("load", function() {
+    document.body.innerHTML = `
+<div id="top-bar">
+	<div id="debug"></div>
+	<button id='btn-dc'>DC</button>
+</div>
+<div id="canvas">
+	<div id="status"></div>
+    <div class="desk"></div>
+    <div class="hanabis"></div>
+    <div class="command-pallet hide">
+        <button class="cmd-play">Play</button>
+        <button class="cmd-discard">Discard</button>
+    </div>
+    <div class="player-0 players player-self"></div>
+    <div class="player-1 players"></div>
+    <div class="player-2 players"></div>
+    <div class="player-3 players"></div>
+    <div class="player-4 players"></div>
+    <div class="player-5 players"></div>
+</div>`
+
     var $canvas = document.getElementById('canvas');
     var $status = document.getElementById('status');
     var $debug = document.getElementById('debug');
     var $hanabis = document.querySelector('.hanabis');
-    var $selfCards = document.querySelector('.player-self')
+    var $selfCards = document.querySelector('.player-self');
+    var $cmdPallet = document.querySelector('.command-pallet');
     // Browsers doesn't support passing data to ondragover (for a reason I don't know) this is a simple workaround
     // assuming there is only one drag (no multi touch).
     var dragging = {
@@ -87,10 +109,6 @@ window.addEventListener("load", function() {
         })
     }
 
-    window.hint = hintPlayer
-    window.discard = discardCard
-    window.play = playCard
-
     function getChildNumber(node) {
         return Array.prototype.indexOf.call(node.parentNode.childNodes, node);
     }
@@ -108,6 +126,7 @@ window.addEventListener("load", function() {
         }
 
         hoveredCardIndex = index
+        $cmdPallet.classList.toggle('hide', hoveredCardIndex === null)
 
         if (hoveredCardIndex !== null) {
             $selfCards.childNodes[hoveredCardIndex].classList.add('hover')
@@ -118,6 +137,16 @@ window.addEventListener("load", function() {
         if (e.target.classList.contains('obj_player_card')) {
             hoverUnhoverCard(getChildNumber(e.target))
         }
+    }
+
+    document.querySelector('.cmd-play').onclick = e => {
+        playCard(hoveredCardIndex)
+        hoverUnhoverCard(null)
+    }
+
+    document.querySelector('.cmd-discard').onclick = e => {
+        discardCard(hoveredCardIndex)
+        hoverUnhoverCard(null)
     }
 
     document.body.addEventListener('click', e => {
@@ -161,7 +190,7 @@ window.addEventListener("load", function() {
     function drawWorld(world) {
         console.log('drawing', world)
 
-        $status.textContent = `${world.TickNumber} ${world.SuccessfulPlayedCount} hint=${world.HintTokenCount} mistake=${world.MistakeTokenCount} discard=${world.DiscardedCount}`;
+        $status.textContent = `${world.TickNumber} hint=${world.HintTokenCount} mistake=${world.MistakeTokenCount} discard=${world.DiscardedCount}`;
 
         $hanabis.innerHTML = ''
         world.SuccessfulPlayedCount.forEach((count, idx) => {
@@ -232,4 +261,7 @@ window.addEventListener("load", function() {
     }
 
     window.ws = ws
+    window.hint = hintPlayer
+    window.discard = discardCard
+    window.play = playCard
 });
