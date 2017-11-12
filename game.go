@@ -27,8 +27,9 @@ var fullScope = image.Rect(0, 0, maxWidth, maxHeight)
 
 var deck []*Card
 var successfulPlayedCount [ColorCount]int
-var unsuccessfulPlayedCount int
 var discardedCount int
+var hintTokenCount = 8
+var mistakeTokenCount = 3
 
 var tickNumber int
 var passedSeconds float64 // It's tickNumber / ticksPerSecond
@@ -206,6 +207,7 @@ func doCommand(player *Player, commandType string, params json.RawMessage) error
 				}
 			}
 		}
+		hintTokenCount--
 	} else if commandType == "discard" {
 		discardCommand := struct {
 			CardIndex    int
@@ -218,6 +220,7 @@ func doCommand(player *Player, commandType string, params json.RawMessage) error
 		// Put the new card at the end to be consistent with UI
 		player.Cards = append(append(player.Cards[0:discardCommand.CardIndex], player.Cards[discardCommand.CardIndex + 1:]...), getCardFromDeck())
 		discardedCount++
+		hintTokenCount++
 	} else if commandType == "play" {
 		playCommand := struct {
 			CardIndex    int
@@ -234,7 +237,7 @@ func doCommand(player *Player, commandType string, params json.RawMessage) error
 		if successfulPlayedCount[card.Color - 1] == card.Number - 1 {
 			successfulPlayedCount[card.Color - 1]++
 		} else {
-			unsuccessfulPlayedCount++
+			mistakeTokenCount--
 		}
 	} else {
 		return fmt.Errorf("unknown command type %v", commandType)
@@ -275,15 +278,17 @@ func serializeWorld(player *Player) []byte {
 		TickNumber  int
 		Players     []*Player
 		SuccessfulPlayedCount [5]int
-		UnsuccessfulPlayedCount int
 		DiscardedCount int
+		HintTokenCount int
+		MistakeTokenCount int
 	}{
 		deskObjects,
 		tickNumber,
 		nil,
 		successfulPlayedCount,
-		unsuccessfulPlayedCount,
 		discardedCount,
+		hintTokenCount,
+		mistakeTokenCount,
 	}
 
 	playerId := -1
@@ -401,19 +406,19 @@ func initObjects() {
 	}
 	Shuffle(deck)
 
-	for x := 0; x < 4; x++ {
-		deskObjects = append(deskObjects, getCardFromDeck())
-	}
+	//for x := 0; x < 4; x++ {
+	//	deskObjects = append(deskObjects, getCardFromDeck())
+	//}
 
-	for x := 0; x < 4; x++ {
-		deskObjects = append(deskObjects, newHintToken(nextId(), 300+40*x, 300))
-	}
-	for x := 0; x < 4; x++ {
-		deskObjects = append(deskObjects, newHintToken(nextId(), 300+40*x, 325))
-	}
-	for x := 0; x < 3; x++ {
-		deskObjects = append(deskObjects, newMistakeToken(nextId(), 320+40*x, 360))
-	}
+	//for x := 0; x < 4; x++ {
+	//	deskObjects = append(deskObjects, newHintToken(nextId(), 300+40*x, 350))
+	//}
+	//for x := 0; x < 4; x++ {
+	//	deskObjects = append(deskObjects, newHintToken(nextId(), 300+40*x, 375))
+	//}
+	//for x := 0; x < 3; x++ {
+	//	deskObjects = append(deskObjects, newMistakeToken(nextId(), 320+40*x, 410))
+	//}
 }
 
 // The game run in a single-thread environment. Other goroutines write to channels to interoperate with game engine.

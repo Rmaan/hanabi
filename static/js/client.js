@@ -16,6 +16,8 @@ window.addEventListener("load", function() {
     var $canvas = document.getElementById('canvas');
     var $status = document.getElementById('status');
     var $debug = document.getElementById('debug');
+    var $hanabis = document.querySelector('.hanabis');
+    var $selfCards = document.querySelector('.player-self')
     // Browsers doesn't support passing data to ondragover (for a reason I don't know) this is a simple workaround
     // assuming there is only one drag (no multi touch).
     var dragging = {
@@ -28,6 +30,8 @@ window.addEventListener("load", function() {
         // ev.preventDefault()
         console.log('drop', ev,  ev.dataTransfer.getData("text"))
     }
+
+    var hoveredCardIndex = null
 
     document.getElementById('btn-dc').onclick = () => ws.close()
 
@@ -87,6 +91,42 @@ window.addEventListener("load", function() {
     window.discard = discardCard
     window.play = playCard
 
+    function getChildNumber(node) {
+        return Array.prototype.indexOf.call(node.parentNode.childNodes, node);
+    }
+
+    function hoverUnhoverCard(index) {
+        // Pass index to hover a specific card.
+        // Pass null to unhover hovered card.
+        // Can be called multiple times with same parameter without making a mess.
+        console.log('hovering', index, 'from', hoveredCardIndex)
+        if (hoveredCardIndex === index)
+            return
+
+        if (hoveredCardIndex !== null) {
+            $selfCards.childNodes[hoveredCardIndex].classList.remove('hover')
+        }
+
+        hoveredCardIndex = index
+
+        if (hoveredCardIndex !== null) {
+            $selfCards.childNodes[hoveredCardIndex].classList.add('hover')
+        }
+    }
+
+    $selfCards.onclick = e => {
+        if (e.target.classList.contains('obj_player_card')) {
+            hoverUnhoverCard(getChildNumber(e.target))
+        }
+    }
+
+    document.body.addEventListener('click', e => {
+        console.log('doc click', e)
+        if (!e.target.classList.contains('obj_player_card')) {
+            hoverUnhoverCard(null)
+        }
+    })
+
     function getObjectDiv(obj, scope) {
         var domId = 'game-id-' + obj.Id
         var $o = document.getElementById(domId)
@@ -121,7 +161,15 @@ window.addEventListener("load", function() {
     function drawWorld(world) {
         console.log('drawing', world)
 
-        $status.textContent = `${world.TickNumber} ${world.SuccessfulPlayedCount} fail=${world.UnsuccessfulPlayedCount} discard=${world.DiscardedCount}`;
+        $status.textContent = `${world.TickNumber} ${world.SuccessfulPlayedCount} hint=${world.HintTokenCount} mistake=${world.MistakeTokenCount} discard=${world.DiscardedCount}`;
+
+        $hanabis.innerHTML = ''
+        world.SuccessfulPlayedCount.forEach((count, idx) => {
+            var $hanabi = document.createElement('div')
+            $hanabi.className = 'obj_desk_card'
+            $hanabi.style.backgroundImage = `url("/static/img/spirits/${idx + 1}${count}.png")`
+            $hanabis.appendChild($hanabi)
+        })
 
         var allObjectsClass = {}
         document.querySelectorAll('.game-obj').forEach(el => {
@@ -129,6 +177,7 @@ window.addEventListener("load", function() {
         })
 
         // TODO support deleting div of removed objects
+        // TODO remove Desk from client/server
         world.DeskObjects.forEach(obj => {
             if (obj.SpiritId) {
                 obj.Class = 'desk_item'

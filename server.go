@@ -26,6 +26,7 @@ var homeTemplate = template.Must(template.New("").Parse(`<!DOCTYPE html>
 </div>
 <div id="canvas">
 	<div class="desk"></div>
+	<div class="hanabis"></div>
 	<div class="player-0 player-self"></div>
 	<div class="player-1 player-others"></div>
 	<div class="player-2 player-others"></div>

@@ -29,8 +29,22 @@ body {
     background-size: cover;
 }
 
+.obj_desk_card {
+    width: 70px;
+    height: 98px;
+    background-size: cover;
+}
+
 #debug {
     font-family: monospace;
+}
+
+.obj_player_card {
+    transition: all 100ms ease-in;
+}
+.obj_player_card.hover {
+    transform: scale(1.1);
+    margin-top: -10px;
 }
 
 .player-others, .player-self {
@@ -81,3 +95,16 @@ body {
     outline: 1px solid darkgreen;
 }
 
+.hanabis {
+    position: absolute;
+    top: calc(50% - 70px);
+    left: calc(50% - 250px);
+    height: 140px;
+    width: 500px;
+
+    outline: 1px solid #eee;
+
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+}
