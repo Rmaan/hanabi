@@ -1,3 +1,5 @@
+"use strict";
+
 (function() {
     // var codec = msgpack.createCodec();
     msgpack.codec.preset.addExtUnpacker(0x00, myVectorUnpacker);
@@ -22,11 +24,15 @@ window.addEventListener("load", function() {
 	<div id="status"></div>
     <div class="desk"></div>
     <div class="hanabis"></div>
-    <div class="command-pallet hide">
+    <div class="self-command-pallet hide">
         <button class="cmd-play">Play</button>
         <button class="cmd-discard">Discard</button>
     </div>
-    <div class="player-0 players player-self"></div>
+    <div class="others-command-pallet hide">
+        <button class="cmd-hint-color">Hint color (<span></span>)</button>
+        <button class="cmd-hint-number">Hint number (<span></span>)</button>
+    </div>
+    <div class="player-0 players"></div>
     <div class="player-1 players"></div>
     <div class="player-2 players"></div>
     <div class="player-3 players"></div>
@@ -38,8 +44,19 @@ window.addEventListener("load", function() {
     var $status = document.getElementById('status');
     var $debug = document.getElementById('debug');
     var $hanabis = document.querySelector('.hanabis');
-    var $selfCards = document.querySelector('.player-self');
-    var $cmdPallet = document.querySelector('.command-pallet');
+    var $selfCmdPallet = document.querySelector('.self-command-pallet');
+    var $othersCmdPallet = document.querySelector('.others-command-pallet');
+    var hoveredSelfCardIndex = null
+    var lastMoveLocationX, lastMoveLocationY
+    var hoveredOthersCard = {
+        active: false,
+        playerId: null,
+        card: null,
+    }
+    var $playerCards = _.range(5).map(idx => document.querySelector('.player-' + idx))
+    var $selfCards = $playerCards[0]
+    var $othersCards = $playerCards.slice(1)
+
     // Browsers doesn't support passing data to ondragover (for a reason I don't know) this is a simple workaround
     // assuming there is only one drag (no multi touch).
     var dragging = {
@@ -53,7 +70,6 @@ window.addEventListener("load", function() {
         console.log('drop', ev,  ev.dataTransfer.getData("text"))
     }
 
-    var hoveredCardIndex = null
 
     document.getElementById('btn-dc').onclick = () => ws.close()
 
@@ -63,7 +79,6 @@ window.addEventListener("load", function() {
         ws.send(data)
     }
 
-    var lastMoveLocationX, lastMoveLocationY
     var sendMoveCommand = _.throttle(ev => {
         // on drag over will be called multiple times event if you don't move your cursor.
         if (ev.clientX == lastMoveLocationX && ev.clientY == lastMoveLocationY)
@@ -113,46 +128,96 @@ window.addEventListener("load", function() {
         return Array.prototype.indexOf.call(node.parentNode.childNodes, node);
     }
 
-    function hoverUnhoverCard(index) {
+    function hoverUnhoverOthersCard(active, playerId, $card) {
+        // If active is false will unhover
+
+        if (hoveredOthersCard.active == active && hoveredOthersCard.playerId == playerId && hoveredOthersCard.card == $card.extra.gameObj)
+            return
+
+        if (hoveredOthersCard.active) {
+
+        }
+
+        hoveredOthersCard.active = active
+
+        $othersCmdPallet.classList.toggle('hide', !active)
+
+        if (hoveredOthersCard.active) {
+            hoveredOthersCard.playerId = playerId
+            var card = hoveredOthersCard.card = $card.extra.gameObj
+            var playerCardRect = $playerCards[playerId].getClientRects()[0];
+            var canvasRect = $canvas.getClientRects()[0];
+            var cardRect = $card.getClientRects()[0]
+
+            if (playerId == 1 || playerId == 2) {
+                $othersCmdPallet.style.left = playerCardRect.width + playerCardRect.x - canvasRect.x + 'px'
+                $othersCmdPallet.style.right = ''
+                $othersCmdPallet.style.top = cardRect.y - canvasRect.y + 'px'
+            }
+            if (playerId == 3 || playerId == 4) {
+                $othersCmdPallet.style.left = ''
+                $othersCmdPallet.style.right = playerCardRect.x - canvasRect.x + 'px'
+                $othersCmdPallet.style.top = cardRect.y - canvasRect.y + 'px'
+            }
+
+            $othersCmdPallet.querySelector('button:nth-child(1) span').textContent = card.Color
+            $othersCmdPallet.querySelector('button:nth-child(2) span').textContent = card.Number
+        }
+    }
+
+    $othersCards.forEach(($cards, idx) => $cards.onclick = e => {
+        if (e.target.classList.contains('obj_player_card')) {
+            hoverUnhoverOthersCard(true, idx + 1, e.target)
+        }
+    })
+
+    document.body.addEventListener('click', e => {
+        if (!e.target.classList.contains('obj_player_card')) {
+            hoverUnhoverOthersCard(false)
+        }
+    })
+
+    document.querySelector('.cmd-hint-color').onclick = e => hintPlayer(hoveredOthersCard.playerId, true, hoveredOthersCard.card.Color)
+    document.querySelector('.cmd-hint-number').onclick = e => hintPlayer(hoveredOthersCard.playerId, false, hoveredOthersCard.card.Number)
+
+    function hoverUnhoverSelfCard(index) {
         // Pass index to hover a specific card.
         // Pass null to unhover hovered card.
         // Can be called multiple times with same parameter without making a mess.
-        console.log('hovering', index, 'from', hoveredCardIndex)
-        if (hoveredCardIndex === index)
+        if (hoveredSelfCardIndex === index)
             return
 
-        if (hoveredCardIndex !== null) {
-            $selfCards.childNodes[hoveredCardIndex].classList.remove('hover')
+        if (hoveredSelfCardIndex !== null) {
+            $selfCards.childNodes[hoveredSelfCardIndex].classList.remove('hover')
         }
 
-        hoveredCardIndex = index
-        $cmdPallet.classList.toggle('hide', hoveredCardIndex === null)
+        hoveredSelfCardIndex = index
+        $selfCmdPallet.classList.toggle('hide', hoveredSelfCardIndex === null)
 
-        if (hoveredCardIndex !== null) {
-            $selfCards.childNodes[hoveredCardIndex].classList.add('hover')
+        if (hoveredSelfCardIndex !== null) {
+            $selfCards.childNodes[hoveredSelfCardIndex].classList.add('hover')
         }
     }
 
     $selfCards.onclick = e => {
         if (e.target.classList.contains('obj_player_card')) {
-            hoverUnhoverCard(getChildNumber(e.target))
+            hoverUnhoverSelfCard(getChildNumber(e.target))
         }
     }
 
     document.querySelector('.cmd-play').onclick = e => {
-        playCard(hoveredCardIndex)
-        hoverUnhoverCard(null)
+        playCard(hoveredSelfCardIndex)
+        hoverUnhoverSelfCard(null)
     }
 
     document.querySelector('.cmd-discard').onclick = e => {
-        discardCard(hoveredCardIndex)
-        hoverUnhoverCard(null)
+        discardCard(hoveredSelfCardIndex)
+        hoverUnhoverSelfCard(null)
     }
 
     document.body.addEventListener('click', e => {
-        console.log('doc click', e)
         if (!e.target.classList.contains('obj_player_card')) {
-            hoverUnhoverCard(null)
+            hoverUnhoverSelfCard(null)
         }
     })
 
@@ -163,7 +228,10 @@ window.addEventListener("load", function() {
             $o = document.createElement('div')
             $o.id = domId
             $o.classList.add('obj_' + obj.Class, 'game-obj')
-            $o.setAttribute('data-game-class', obj.Class)
+            $o.extra = {
+                gameObj: obj,
+                gameClass: obj.Class,
+            }
             $o.style.width = obj.Width + 'px'
             $o.style.height = obj.Height + 'px'
 
@@ -190,8 +258,9 @@ window.addEventListener("load", function() {
     function drawWorld(world) {
         console.log('drawing', world)
 
-        $status.textContent = `${world.TickNumber} hint=${world.HintTokenCount} mistake=${world.MistakeTokenCount} discard=${world.DiscardedCount}`;
+        $status.textContent = `tick=${world.TickNumber} hint=${world.HintTokenCount} mistake=${world.MistakeTokenCount} discard=${world.DiscardedCount}`;
 
+        // TODO avoid creating divs each tick.
         $hanabis.innerHTML = ''
         world.SuccessfulPlayedCount.forEach((count, idx) => {
             var $hanabi = document.createElement('div')
@@ -202,7 +271,7 @@ window.addEventListener("load", function() {
 
         var allObjectsClass = {}
         document.querySelectorAll('.game-obj').forEach(el => {
-            allObjectsClass[el.id] = el.getAttribute('data-game-class')
+            allObjectsClass[el.id] = el.extra.gameClass
         })
 
         // TODO support deleting div of removed objects

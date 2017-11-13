@@ -7,6 +7,10 @@ body {
     display: none !important;
 }
 
+.invisible {
+    visibility: hidden !important;
+}
+
 #status {
     position: absolute;
     top: 20%;
@@ -53,12 +57,13 @@ body {
     font-family: monospace;
 }
 
-.obj_player_card {
+.obj_player_card, .obj_desk_card {
+    box-shadow: 1px 1px 3px #292929;
     transition: all 100ms ease-in;
 }
 .obj_player_card.hover {
-    transform: scale(1.1);
-    margin-top: -10px;
+    transform: scale(1.05);
+    margin-top: -15px;
 }
 
 .players {
@@ -71,7 +76,7 @@ body {
     align-items: center;
 }
 
-.command-pallet {
+.self-command-pallet {
     position: absolute;
     left: calc(50% - 140px / 2);
     bottom: 130px;
@@ -80,9 +85,21 @@ body {
     display: flex;
     justify-content: space-between;
 }
-.command-pallet button {
+.self-command-pallet button {
     padding: 7px;
     width: 60px;
+}
+.others-command-pallet {
+    position: absolute;
+    width: 100px;
+    height: 60px;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+.others-command-pallet button {
+    padding: 7px;
 }
 
 .player-0 {
