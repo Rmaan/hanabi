@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"reflect"
 	"time"
+	"sync"
 )
 
 var deskObjects = make([]HasShape, 0)
@@ -38,13 +39,18 @@ var lastActivityTick = 0
 const inactivityTickCount = 200 // After this many ticks without commands/join, server will stop broadcasting until another command arrives.
 
 type Player struct {
-	ws            *websocket.Conn
-	name          string
+	ws            *websocket.Conn  // ws == nil means player is disconnected
+	wsMutex			sync.Mutex  // Hold this if you want to read/modify ws (the pointer itself)
+	Name          string
 	isObserver    bool
-	readCancelled chan struct{} // Websocket reader goroutine is the sender
-	disconnected  chan struct{} // Game goroutine is the sender
 	// TODO change disconnected to boolean and change related goroutines.
 	Cards []*Card
+}
+
+func (p *Player) disconnect() {
+	p.wsMutex.Lock()
+	p.ws = nil
+	p.wsMutex.Unlock()
 }
 
 type playerCommandRaw struct {
@@ -53,54 +59,70 @@ type playerCommandRaw struct {
 }
 
 func enqueuePlayerCommands(player *Player) {
-	defer close(player.readCancelled)
 	// player is shared with game. Don't access non-threadsafe fields.
 	// gorilla websocket supports one concurrent writer and one concurrent reader.
 	for {
-		select {
-		case <-player.disconnected:
+		player.wsMutex.Lock()
+		ws := player.ws
+		player.wsMutex.Unlock()
+		if ws == nil {
 			return
-		default:
-			mt, message, err := player.ws.ReadMessage()
-			if err != nil {
-				log.Println("error in WS read:", err)
-				return
+		}
 
-			} else if mt != websocket.TextMessage {
-				log.Printf("Binary message received from player %v", player)
-				return
-
-			} else {
-				newCommands <- playerCommandRaw{player, message}
-			}
+		mt, message, err := ws.ReadMessage()
+		if err != nil {
+			log.Println("error in WS read:", err)
+			player.disconnect()
+			return
+		} else if mt != websocket.TextMessage {
+			log.Printf("Binary message received from player %v", player)
+			player.disconnect()
+			return
+		} else {
+			newCommands <- playerCommandRaw{player, message}
 		}
 	}
 }
 
-func joinNewPlayers() {
+func getPlayerForSocket(ws *websocket.Conn) *Player {
+	// Reconnect player to first disconnected player
+	for _, p := range playerList {
+		p.wsMutex.Lock()
+		if p.ws == nil {
+			p.ws = ws
+			p.wsMutex.Unlock()
+			return p
+		}
+		p.wsMutex.Unlock()
+	}
+
+	player := &Player{
+		ws:            ws,
+		Name:          fmt.Sprintf("Player %d", len(playerList)+1),
+		isObserver:    false,
+	}
+
+	cardX := 300
+	for x := 0; x < 5; x++ {
+		c := getCardFromDeck()
+		c.scope = &playerScope
+		randPart := rand.Intn(40) - 10
+		c.X = cardX + randPart
+		cardX += randPart + c.Width
+		c.Y = 450
+		player.Cards = append(player.Cards, c)
+	}
+
+	playerList = append(playerList, player)
+	return player
+}
+
+func joinNewClients() {
 	for len(newClients) > 0 {
 		ws := <-newClients
 		lastActivityTick = tickNumber
-		player := &Player{
-			ws:            ws,
-			name:          fmt.Sprintf("Player %d", len(playerList)+1),
-			isObserver:    false,
-			disconnected:  make(chan struct{}),
-			readCancelled: make(chan struct{}),
-		}
+		player := getPlayerForSocket(ws)
 
-		cardX := 300
-		for x := 0; x < 5; x++ {
-			c := getCardFromDeck()
-			c.scope = &playerScope
-			randPart := rand.Intn(40) - 10
-			c.X = cardX + randPart
-			cardX += randPart + c.Width
-			c.Y = 450
-			player.Cards = append(player.Cards, c)
-		}
-
-		playerList = append(playerList, player)
 		if !player.isObserver {
 			go enqueuePlayerCommands(player)
 		}
@@ -108,7 +130,7 @@ func joinNewPlayers() {
 }
 
 func doTick() {
-	joinNewPlayers()
+	joinNewClients()
 
 	processAllCommands()
 
@@ -292,22 +314,16 @@ func serializeWorld(player *Player) []byte {
 	}
 
 	playerId := -1
-	var players []*Player
 
-	// Don't serialize disconnected players. Find user's ID.
-	for _, p := range playerList {
-		select {
-		case <-p.disconnected:
-			continue
-		default:
-		}
+	for idx, p := range playerList {
 		if p == player {
-			playerId = len(players)
+			playerId = idx
 		}
-		players = append(players, p)
 	}
+
 	// Order players array so each player thinks he is the first player.
-	players = append(players[playerId:], players[:playerId]...)
+	players := append([]*Player{}, playerList[playerId:]...)
+	players = append(players, playerList[:playerId]...)
 	packet.Players = players
 
 	// Conceal player cards' number/color
@@ -341,22 +357,19 @@ func broadcastWorld() {
 	var serializedWorld []byte
 
 	for _, player := range playerList {
-		select {
-		case <-player.disconnected:
+		player.wsMutex.Lock()
+		ws := player.ws
+		player.wsMutex.Unlock()
+
+		if ws == nil {
 			continue
-		default:
 		}
-		// If we merge selects, we may close `disconnected` for a second time.
-		select {
-		case <-player.readCancelled:
-			close(player.disconnected) // Disconnect player when read goroutine stops
-		default:
-			serializedWorld = serializeWorld(player)
-			err := player.ws.WriteMessage(websocket.BinaryMessage, serializedWorld)
-			if err != nil {
-				log.Printf("Dropping client because of error: %#v", err)
-				close(player.disconnected)
-			}
+
+		serializedWorld = serializeWorld(player)
+		err := ws.WriteMessage(websocket.BinaryMessage, serializedWorld)
+		if err != nil {
+			log.Printf("Dropping client because of error: %#v", err)
+			player.disconnect()
 		}
 	}
 }
