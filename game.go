@@ -259,6 +259,9 @@ func doCommand(player *Player, commandType string, params json.RawMessage) error
 
 		if successfulPlayedCount[card.Color-1] == card.Number-1 {
 			successfulPlayedCount[card.Color-1]++
+			if card.Number == NumberMax {
+				hintTokenCount++
+			}
 		} else {
 			mistakeTokenCount--
 		}
