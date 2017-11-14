@@ -9,8 +9,8 @@ import (
 	"log"
 	"math/rand"
 	"reflect"
-	"time"
 	"sync"
+	"time"
 )
 
 var deskObjects = make([]HasShape, 0)
@@ -39,12 +39,11 @@ var lastActivityTick = 0
 const inactivityTickCount = 200 // After this many ticks without commands/join, server will stop broadcasting until another command arrives.
 
 type Player struct {
-	ws            *websocket.Conn  // ws == nil means player is disconnected
-	wsMutex			sync.Mutex  // Hold this if you want to read/modify ws (the pointer itself)
-	Name          string
-	isObserver    bool
-	// TODO change disconnected to boolean and change related goroutines.
-	Cards []*Card
+	ws         *websocket.Conn // ws == nil means player is disconnected
+	wsMutex    sync.Mutex      // Hold this if you want to read/modify ws (the pointer itself)
+	Name       string
+	isObserver bool
+	Cards      []*Card
 }
 
 func (p *Player) disconnect() {
@@ -85,6 +84,8 @@ func enqueuePlayerCommands(player *Player) {
 }
 
 func getPlayerForSocket(ws *websocket.Conn) *Player {
+	// Reconnect socket to a disconnected player or create a new player if no disconnected player is available.
+
 	// Reconnect player to first disconnected player
 	for _, p := range playerList {
 		p.wsMutex.Lock()
@@ -97,9 +98,9 @@ func getPlayerForSocket(ws *websocket.Conn) *Player {
 	}
 
 	player := &Player{
-		ws:            ws,
-		Name:          fmt.Sprintf("Player %d", len(playerList)+1),
-		isObserver:    false,
+		ws:         ws,
+		Name:       fmt.Sprintf("Player %d", len(playerList)+1),
+		isObserver: false,
 	}
 
 	cardX := 300
@@ -232,32 +233,32 @@ func doCommand(player *Player, commandType string, params json.RawMessage) error
 		hintTokenCount--
 	} else if commandType == "discard" {
 		discardCommand := struct {
-			CardIndex    int
+			CardIndex int
 		}{}
 		err := json.Unmarshal(params, &discardCommand)
 		if err != nil {
 			return fmt.Errorf("err in params %v `%s`", err, params)
 		}
-		discardCommand.CardIndex = clamp(discardCommand.CardIndex, 0, len(player.Cards) - 1)
+		discardCommand.CardIndex = clamp(discardCommand.CardIndex, 0, len(player.Cards)-1)
 		// Put the new card at the end to be consistent with UI
-		player.Cards = append(append(player.Cards[0:discardCommand.CardIndex], player.Cards[discardCommand.CardIndex + 1:]...), getCardFromDeck())
+		player.Cards = append(append(player.Cards[0:discardCommand.CardIndex], player.Cards[discardCommand.CardIndex+1:]...), getCardFromDeck())
 		discardedCount++
 		hintTokenCount++
 	} else if commandType == "play" {
 		playCommand := struct {
-			CardIndex    int
+			CardIndex int
 		}{}
 		err := json.Unmarshal(params, &playCommand)
 		if err != nil {
 			return fmt.Errorf("err in params %v `%s`", err, params)
 		}
-		playCommand.CardIndex = clamp(playCommand.CardIndex, 0, len(player.Cards) - 1)
+		playCommand.CardIndex = clamp(playCommand.CardIndex, 0, len(player.Cards)-1)
 		card := player.Cards[playCommand.CardIndex]
 		// Put the new card at the end to be consistent with UI
-		player.Cards = append(append(player.Cards[0:playCommand.CardIndex], player.Cards[playCommand.CardIndex + 1:]...), getCardFromDeck())
+		player.Cards = append(append(player.Cards[0:playCommand.CardIndex], player.Cards[playCommand.CardIndex+1:]...), getCardFromDeck())
 
-		if successfulPlayedCount[card.Color - 1] == card.Number - 1 {
-			successfulPlayedCount[card.Color - 1]++
+		if successfulPlayedCount[card.Color-1] == card.Number-1 {
+			successfulPlayedCount[card.Color-1]++
 		} else {
 			mistakeTokenCount--
 		}
@@ -296,13 +297,13 @@ func (p *Card) EncodeMsgpack(enc *msgpack.Encoder) error {
 
 func serializeWorld(player *Player) []byte {
 	packet := struct {
-		DeskObjects []HasShape
-		TickNumber  int
-		Players     []*Player
+		DeskObjects           []HasShape
+		TickNumber            int
+		Players               []*Player
 		SuccessfulPlayedCount [5]int
-		DiscardedCount int
-		HintTokenCount int
-		MistakeTokenCount int
+		DiscardedCount        int
+		HintTokenCount        int
+		MistakeTokenCount     int
 	}{
 		deskObjects,
 		tickNumber,

@@ -24,19 +24,22 @@ window.addEventListener("load", function() {
 	<div id="status"></div>
     <div class="desk"></div>
     <div class="hanabis"></div>
-    <div class="self-command-pallet hide">
-        <button class="cmd-play">Play</button>
-        <button class="cmd-discard">Discard</button>
-    </div>
     <div class="others-command-pallet hide">
         <button class="cmd-hint-color">Hint color (<span></span>)</button>
         <button class="cmd-hint-number">Hint number (<span></span>)</button>
     </div>
-    <div class="player-0 players"></div>
-    <div class="player-1 players"></div>
-    <div class="player-2 players"></div>
-    <div class="player-3 players"></div>
-    <div class="player-4 players"></div>
+    <div class="player-0 players">
+        <div class="cards"></div>
+        <div class="name"></div>
+        <div class="self-command-pallet hide">
+            <button class="cmd-play">Play</button>
+            <button class="cmd-discard">Discard</button>
+        </div>
+    </div>
+    <div class="player-1 players"><div class="cards"></div><div class="name"></div></div>
+    <div class="player-2 players"><div class="cards"></div><div class="name"></div></div>
+    <div class="player-3 players"><div class="cards"></div><div class="name"></div></div>
+    <div class="player-4 players"><div class="cards"></div><div class="name"></div></div>
 </div>`
 
     var $canvas = document.getElementById('canvas');
@@ -52,7 +55,8 @@ window.addEventListener("load", function() {
         playerId: null,
         card: null,
     }
-    var $playerCards = _.range(5).map(idx => document.querySelector('.player-' + idx))
+    var $players = _.range(5).map(idx => document.querySelector('.player-' + idx))
+    var $playerCards = $players.map(el => el.querySelector('.cards'))
     var $selfCards = $playerCards[0]
     var $othersCards = $playerCards.slice(1)
 
@@ -130,7 +134,7 @@ window.addEventListener("load", function() {
     function hoverUnhoverOthersCard(active, playerId, $card) {
         // If active is false will unhover
 
-        if (hoveredOthersCard.active == active && hoveredOthersCard.playerId == playerId && hoveredOthersCard.card == $card.extra.gameObj)
+        if (hoveredOthersCard.active == active && !active || hoveredOthersCard.playerId == playerId && hoveredOthersCard.card == $card.extra.gameObj)
             return
 
         if (hoveredOthersCard.active) {
@@ -220,7 +224,7 @@ window.addEventListener("load", function() {
         }
     })
 
-    function getObjectDiv(obj, scope) {
+    function getObjectDiv(obj, $parent) {
         var domId = 'game-id-' + obj.Id
         var $o = document.getElementById(domId)
         if (!$o) {
@@ -249,7 +253,7 @@ window.addEventListener("load", function() {
                 }
             }
 
-            $canvas.querySelector('.' + scope).appendChild($o)
+            $parent.appendChild($o)
         }
         return $o
     }
@@ -281,7 +285,7 @@ window.addEventListener("load", function() {
             } else {
                 obj.Class = 'block'
             }
-            var $o = getObjectDiv(obj, 'desk')
+            var $o = getObjectDiv(obj, $canvas)
 
             $o.style.top = obj.Y + 'px'
             $o.style.left = obj.X + 'px'
@@ -291,14 +295,18 @@ window.addEventListener("load", function() {
             }
         })
 
-        world.Players.forEach((p, playerIndex) => p.Cards.forEach(obj => {
-            obj.Class = 'player_card'
-            var $o = getObjectDiv(obj, 'player-' + playerIndex)
+        world.Players.forEach((p, playerIndex) => {
+            $players[playerIndex].querySelector('.name').textContent = p.Name
 
-            $o.style.backgroundImage = `url("/static/img/spirits/${obj.Color}${obj.Number}.png")`
+            p.Cards.forEach(obj => {
+                obj.Class = 'player_card'
+                var $o = getObjectDiv(obj, $playerCards[playerIndex])
 
-            delete allObjectsClass[$o.id] // Remove them from dict so they remain in DOM
-        }))
+                $o.style.backgroundImage = `url("/static/img/spirits/${obj.Color}${obj.Number}.png")`
+
+                delete allObjectsClass[$o.id] // Remove them from dict so they remain in DOM
+            })
+        })
 
         // Remove all non-networked cards from DOM
         Object.keys(allObjectsClass).forEach(id => {
