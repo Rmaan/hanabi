@@ -83,8 +83,8 @@ type RotatingObject struct {
 }
 
 func (o *RotatingObject) tick() {
-	o.Y = o.centerX + int(float64(o.radius)*math.Cos(math.Pi*2*float64(passedSeconds)/2))
-	o.X = o.centerY + int(float64(o.radius)*math.Sin(math.Pi*2*float64(passedSeconds)/2))
+	o.X = o.centerX + int(float64(o.radius)*math.Cos(math.Pi*2*float64(passedSeconds)/2))
+	o.Y = o.centerY + int(float64(o.radius)*math.Sin(math.Pi*2*float64(passedSeconds)/2))
 }
 
 type StaticObject struct {

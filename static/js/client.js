@@ -134,7 +134,7 @@ window.addEventListener("load", function() {
     function hoverUnhoverOthersCard(active, playerId, $card) {
         // If active is false will unhover
 
-        if (hoveredOthersCard.active == active && !active || hoveredOthersCard.playerId == playerId && hoveredOthersCard.card == $card.extra.gameObj)
+        if (hoveredOthersCard.active == active && (!active || hoveredOthersCard.playerId == playerId && hoveredOthersCard.card == $card.extra.gameObj))
             return
 
         if (hoveredOthersCard.active) {
@@ -153,13 +153,13 @@ window.addEventListener("load", function() {
             var cardRect = $card.getClientRects()[0]
 
             if (playerId == 1 || playerId == 2) {
-                $othersCmdPallet.style.left = playerCardRect.width + playerCardRect.x - canvasRect.x + 'px'
+                $othersCmdPallet.style.left = playerCardRect.width + 'px'
                 $othersCmdPallet.style.right = ''
                 $othersCmdPallet.style.top = cardRect.y - canvasRect.y + 'px'
             }
             if (playerId == 3 || playerId == 4) {
                 $othersCmdPallet.style.left = ''
-                $othersCmdPallet.style.right = playerCardRect.x - canvasRect.x + 'px'
+                $othersCmdPallet.style.right = playerCardRect.width + 'px'
                 $othersCmdPallet.style.top = cardRect.y - canvasRect.y + 'px'
             }
 
@@ -261,7 +261,7 @@ window.addEventListener("load", function() {
     function drawWorld(world) {
         console.log('drawing', world)
 
-        $status.textContent = `tick=${world.TickNumber} hint=${world.HintTokenCount} mistake=${world.MistakeTokenCount} discard=${world.DiscardedCount}`;
+        $status.textContent = `tick=${world.TickNumber} hint_token=${world.HintTokenCount} mistake_token=${world.MistakeTokenCount} discard=${world.DiscardedCount}`;
 
         // TODO avoid creating divs each tick.
         $hanabis.innerHTML = ''

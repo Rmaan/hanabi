@@ -398,8 +398,8 @@ func initObjects() {
 		return lastId
 	}
 
-	deskObjects = append(deskObjects, &StaticObject{BaseObject{Id: nextId(), X: 100, Y: 100, Width: 10, Height: 10}})
-	deskObjects = append(deskObjects, &RotatingObject{BaseObject{Id: nextId(), Height: 2, Width: 2}, 100, 100, 50})
+	deskObjects = append(deskObjects, &StaticObject{BaseObject{Id: nextId(), X: 200, Y: 100, Width: 10, Height: 10}})
+	deskObjects = append(deskObjects, &RotatingObject{BaseObject{Id: nextId(), Height: 2, Width: 2}, 200, 100, 40})
 
 	var color CardColor
 	const deckX = 300
