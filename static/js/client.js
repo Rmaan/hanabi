@@ -37,7 +37,6 @@ window.addEventListener("load", function() {
     <div class="player-2 players"></div>
     <div class="player-3 players"></div>
     <div class="player-4 players"></div>
-    <div class="player-5 players"></div>
 </div>`
 
     var $canvas = document.getElementById('canvas');
