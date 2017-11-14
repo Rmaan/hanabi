@@ -307,6 +307,7 @@ func serializeWorld(player *Player) []byte {
 		DiscardedCount        int
 		HintTokenCount        int
 		MistakeTokenCount     int
+		RemainingDeckCount    int
 	}{
 		deskObjects,
 		tickNumber,
@@ -315,6 +316,7 @@ func serializeWorld(player *Player) []byte {
 		discardedCount,
 		hintTokenCount,
 		mistakeTokenCount,
+		len(deck),
 	}
 
 	playerId := -1

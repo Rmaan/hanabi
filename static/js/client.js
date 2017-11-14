@@ -261,7 +261,7 @@ window.addEventListener("load", function() {
     function drawWorld(world) {
         console.log('drawing', world)
 
-        $status.textContent = `tick=${world.TickNumber} hint_token=${world.HintTokenCount} mistake_token=${world.MistakeTokenCount} discard=${world.DiscardedCount}`;
+        $status.textContent = `tick=${world.TickNumber} hint_token=${world.HintTokenCount} mistake_token=${world.MistakeTokenCount} deck_cards=${world.RemainingDeckCount}`;
 
         // TODO avoid creating divs each tick.
         $hanabis.innerHTML = ''
