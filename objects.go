@@ -1,7 +1,6 @@
 package hanabi
 
 import (
-	"image"
 	"math"
 )
 
@@ -9,7 +8,6 @@ type BaseObject struct {
 	Id            int
 	X, Y          int
 	Height, Width int
-	scope         *image.Rectangle
 }
 
 func (o *BaseObject) getId() int {
@@ -43,24 +41,18 @@ func clamp(x, min, max int) int {
 }
 
 func (o *BaseObject) setX(x int) {
-	if o.scope != nil {
-		x = clamp(x, o.scope.Min.X, o.scope.Max.X-o.Width)
-	}
 	o.X = x
 }
 
 func (o *BaseObject) setY(y int) {
-	if o.scope != nil {
-		y = clamp(y, o.scope.Min.Y, o.scope.Max.Y-o.Height)
-	}
 	o.Y = y
 }
 
-func (o *BaseObject) tick() {
+func (o *BaseObject) tick(float64) {
 }
 
 type HasShape interface {
-	tick()
+	tick(float64)
 	getX() int
 	getY() int
 	getId() int
@@ -82,7 +74,7 @@ type RotatingObject struct {
 	centerX, centerY, radius int
 }
 
-func (o *RotatingObject) tick() {
+func (o *RotatingObject) tick(passedSeconds float64) {
 	o.X = o.centerX + int(float64(o.radius)*math.Cos(math.Pi*2*float64(passedSeconds)/2))
 	o.Y = o.centerY + int(float64(o.radius)*math.Sin(math.Pi*2*float64(passedSeconds)/2))
 }
@@ -105,10 +97,10 @@ type Card struct {
 	NumberHinted bool
 }
 
-func newCard(id, x, y int, color CardColor, number int, scope *image.Rectangle) *Card {
+func newCard(id, x, y int, color CardColor, number int) *Card {
 	const scale = 0.7
 	return &Card{
-		BaseObject{Id: id, X: x, Y: y, Width: 100 * scale, Height: 140 * scale, scope: scope},
+		BaseObject{Id: id, X: x, Y: y, Width: 100 * scale, Height: 140 * scale},
 		color,
 		number,
 		false,
@@ -134,7 +126,7 @@ func (t *HintToken) flip() {
 
 func newHintToken(id, x, y int) *HintToken {
 	return &HintToken{
-		BaseObject{id, x, y, 25, 25, &fullScope},
+		BaseObject{id, x, y, 25, 25},
 		103,
 		false,
 	}
@@ -157,7 +149,7 @@ func (t *MistakeToken) flip() {
 
 func newMistakeToken(id, x, y int) *MistakeToken {
 	return &MistakeToken{
-		BaseObject{id, x, y, 25, 25, &fullScope},
+		BaseObject{id, x, y, 25, 25},
 		101,
 		false,
 	}

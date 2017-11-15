@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/gorilla/websocket"
 	"github.com/vmihailenco/msgpack"
-	"image"
 	"log"
 	"math/rand"
 	"reflect"
@@ -13,30 +12,69 @@ import (
 	"time"
 )
 
-var deskObjects = make([]HasShape, 0)
-var playerList = make([]*Player, 0)
-var newCommands = make(chan playerCommandRaw, 100)
-
-// Positioning
-const maxWidth = 1000
-const maxHeight = 560
-const playerMargin = 0.20
-
-var cardsScope = image.Rect(maxWidth*playerMargin, 0, maxWidth*(1-playerMargin), maxHeight*(1-playerMargin))
-var playerScope = image.Rect(maxWidth*playerMargin, maxHeight*(1-playerMargin), maxWidth*(1-playerMargin), maxHeight)
-var fullScope = image.Rect(0, 0, maxWidth, maxHeight)
-
-var deck []*Card
-var successfulPlayedCount [ColorCount]int
-var discardedCount int
-var hintTokenCount = 8
-var mistakeTokenCount = 3
-
-var tickNumber int
-var passedSeconds float64 // It's tickNumber / ticksPerSecond
-var lastActivityTick = 0
-
 const inactivityTickCount = 200 // After this many ticks without commands/join, server will stop broadcasting until another command arrives.
+
+type Game struct {
+	tickNumber       int
+	tickPerSecond    int
+	lastActivityTick int
+
+	playerList  []*Player
+	newCommands chan playerCommandRaw
+
+	deskObjects           []HasShape
+	deck                  []*Card
+	successfulPlayedCount [ColorCount]int
+	discardedCount        int
+	hintTokenCount        int
+	mistakeTokenCount     int
+}
+
+func newGame(tickPerSecond int) *Game {
+	g := &Game{
+		deskObjects: make([]HasShape, 0),
+		playerList:  make([]*Player, 0),
+		newCommands: make(chan playerCommandRaw, 100),
+
+		//deck: []*Card  // ???
+		hintTokenCount:    8,
+		mistakeTokenCount: 3,
+		tickPerSecond:     tickPerSecond,
+	}
+
+	lastId := 0
+	nextId := func() int {
+		lastId++
+		return lastId
+	}
+
+	g.deskObjects = append(g.deskObjects, &StaticObject{BaseObject{Id: nextId(), X: 200, Y: 100, Width: 10, Height: 10}})
+	g.deskObjects = append(g.deskObjects, &RotatingObject{BaseObject{Id: nextId(), Height: 2, Width: 2}, 200, 100, 40})
+
+	var color CardColor
+	const deckX = 300
+	const deckY = 100
+	for color = 1; color <= ColorCount; color++ {
+		g.deck = append(g.deck,
+			newCard(nextId(), deckX, deckY, color, 1),
+			newCard(nextId(), deckX, deckY, color, 1),
+			newCard(nextId(), deckX, deckY, color, 1),
+			newCard(nextId(), deckX, deckY, color, 2),
+			newCard(nextId(), deckX, deckY, color, 2),
+			newCard(nextId(), deckX, deckY, color, 3),
+			newCard(nextId(), deckX, deckY, color, 3),
+			newCard(nextId(), deckX, deckY, color, 4),
+			newCard(nextId(), deckX, deckY, color, 4),
+			newCard(nextId(), deckX, deckY, color, 5),
+		)
+	}
+	Shuffle(g.deck)
+	return g
+}
+
+func (g *Game) passedSeconds() float64 {
+	return float64(g.tickNumber) / float64(g.tickPerSecond)
+}
 
 type Player struct {
 	ws         *websocket.Conn // ws == nil means player is disconnected
@@ -57,7 +95,7 @@ type playerCommandRaw struct {
 	data   []byte
 }
 
-func enqueuePlayerCommands(player *Player) {
+func (g *Game) enqueuePlayerCommands(player *Player) {
 	// player is shared with game. Don't access non-threadsafe fields.
 	// gorilla websocket supports one concurrent writer and one concurrent reader.
 	for {
@@ -78,16 +116,16 @@ func enqueuePlayerCommands(player *Player) {
 			player.disconnect()
 			return
 		} else {
-			newCommands <- playerCommandRaw{player, message}
+			g.newCommands <- playerCommandRaw{player, message}
 		}
 	}
 }
 
-func getPlayerForSocket(ws *websocket.Conn) *Player {
+func (g *Game) getPlayerForSocket(ws *websocket.Conn) *Player {
 	// Reconnect socket to a disconnected player or create a new player if no disconnected player is available.
 
 	// Reconnect player to first disconnected player
-	for _, p := range playerList {
+	for _, p := range g.playerList {
 		p.wsMutex.Lock()
 		if p.ws == nil {
 			p.ws = ws
@@ -99,14 +137,13 @@ func getPlayerForSocket(ws *websocket.Conn) *Player {
 
 	player := &Player{
 		ws:         ws,
-		Name:       fmt.Sprintf("Player %d", len(playerList)+1),
+		Name:       fmt.Sprintf("Player %d", len(g.playerList)+1),
 		isObserver: false,
 	}
 
 	cardX := 300
 	for x := 0; x < 5; x++ {
-		c := getCardFromDeck()
-		c.scope = &playerScope
+		c := g.getCardFromDeck()
 		randPart := rand.Intn(40) - 10
 		c.X = cardX + randPart
 		cardX += randPart + c.Width
@@ -114,42 +151,42 @@ func getPlayerForSocket(ws *websocket.Conn) *Player {
 		player.Cards = append(player.Cards, c)
 	}
 
-	playerList = append(playerList, player)
+	g.playerList = append(g.playerList, player)
 	return player
 }
 
-func joinNewClients() {
+func (g *Game) joinNewClients() {
 	for len(newClients) > 0 {
 		ws := <-newClients
-		lastActivityTick = tickNumber
-		player := getPlayerForSocket(ws)
+		g.lastActivityTick = g.tickNumber
+		player := g.getPlayerForSocket(ws)
 
 		if !player.isObserver {
-			go enqueuePlayerCommands(player)
+			go g.enqueuePlayerCommands(player)
 		}
 	}
 }
 
-func doTick() {
-	joinNewClients()
+func (g *Game) doTick() {
+	g.joinNewClients()
 
-	processAllCommands()
+	g.processAllCommands()
 
-	for _, obj := range deskObjects {
-		obj.tick()
+	for _, obj := range g.deskObjects {
+		obj.tick(g.passedSeconds())
 	}
 
-	broadcastWorld()
+	g.broadcastWorld()
 }
 
-func findObjById(id int) (HasShape, error) {
-	for _, x := range deskObjects {
+func (g *Game) findObjById(id int) (HasShape, error) {
+	for _, x := range g.deskObjects {
 		if x.getId() == id {
 			return x, nil
 		}
 	}
 
-	for _, p := range playerList {
+	for _, p := range g.playerList {
 		for _, x := range p.Cards {
 			if x.getId() == id {
 				return x, nil
@@ -159,7 +196,7 @@ func findObjById(id int) (HasShape, error) {
 	return nil, fmt.Errorf("Invalid object id")
 }
 
-func doCommand(player *Player, commandType string, params json.RawMessage) error {
+func (g *Game) doCommand(player *Player, commandType string, params json.RawMessage) error {
 	if commandType == "move" {
 		moveCommand := struct {
 			X, Y, TargetId int
@@ -171,7 +208,7 @@ func doCommand(player *Player, commandType string, params json.RawMessage) error
 		}
 		log.Printf("move command %+v", moveCommand)
 
-		obj, err := findObjById(moveCommand.TargetId)
+		obj, err := g.findObjById(moveCommand.TargetId)
 		if err != nil {
 			return err
 		}
@@ -189,7 +226,7 @@ func doCommand(player *Player, commandType string, params json.RawMessage) error
 			return fmt.Errorf("err in params %v `%s`", err, params)
 		}
 		log.Printf("flip command %+v", flipCommand)
-		obj, err := findObjById(flipCommand.TargetId)
+		obj, err := g.findObjById(flipCommand.TargetId)
 		if err != nil {
 			return err
 		}
@@ -208,17 +245,17 @@ func doCommand(player *Player, commandType string, params json.RawMessage) error
 			return fmt.Errorf("err in params %v `%s`", err, params)
 		}
 		hintCommand.Value = clamp(hintCommand.Value, NumberMin, NumberMax)
-		hintCommand.PlayerId = clamp(hintCommand.PlayerId, 1, len(playerList)-1) // Can't hint himself!
+		hintCommand.PlayerId = clamp(hintCommand.PlayerId, 1, len(g.playerList)-1) // Can't hint himself!
 
 		thisPlayerIndex := -1
-		for idx, p := range playerList {
+		for idx, p := range g.playerList {
 			if p == player {
 				thisPlayerIndex = idx
 			}
 		}
 		// Translate to absolute ID space
-		hintCommand.PlayerId = (hintCommand.PlayerId + thisPlayerIndex) % len(playerList)
-		targetPlayer := playerList[hintCommand.PlayerId]
+		hintCommand.PlayerId = (hintCommand.PlayerId + thisPlayerIndex) % len(g.playerList)
+		targetPlayer := g.playerList[hintCommand.PlayerId]
 		for _, c := range targetPlayer.Cards {
 			if hintCommand.IsColor {
 				if int(c.Color) == hintCommand.Value {
@@ -230,7 +267,7 @@ func doCommand(player *Player, commandType string, params json.RawMessage) error
 				}
 			}
 		}
-		hintTokenCount--
+		g.hintTokenCount--
 	} else if commandType == "discard" {
 		discardCommand := struct {
 			CardIndex int
@@ -241,9 +278,9 @@ func doCommand(player *Player, commandType string, params json.RawMessage) error
 		}
 		discardCommand.CardIndex = clamp(discardCommand.CardIndex, 0, len(player.Cards)-1)
 		// Put the new card at the end to be consistent with UI
-		player.Cards = append(append(player.Cards[0:discardCommand.CardIndex], player.Cards[discardCommand.CardIndex+1:]...), getCardFromDeck())
-		discardedCount++
-		hintTokenCount++
+		player.Cards = append(append(player.Cards[0:discardCommand.CardIndex], player.Cards[discardCommand.CardIndex+1:]...), g.getCardFromDeck())
+		g.discardedCount++
+		g.hintTokenCount++
 	} else if commandType == "play" {
 		playCommand := struct {
 			CardIndex int
@@ -255,15 +292,15 @@ func doCommand(player *Player, commandType string, params json.RawMessage) error
 		playCommand.CardIndex = clamp(playCommand.CardIndex, 0, len(player.Cards)-1)
 		card := player.Cards[playCommand.CardIndex]
 		// Put the new card at the end to be consistent with UI
-		player.Cards = append(append(player.Cards[0:playCommand.CardIndex], player.Cards[playCommand.CardIndex+1:]...), getCardFromDeck())
+		player.Cards = append(append(player.Cards[0:playCommand.CardIndex], player.Cards[playCommand.CardIndex+1:]...), g.getCardFromDeck())
 
-		if successfulPlayedCount[card.Color-1] == card.Number-1 {
-			successfulPlayedCount[card.Color-1]++
+		if g.successfulPlayedCount[card.Color-1] == card.Number-1 {
+			g.successfulPlayedCount[card.Color-1]++
 			if card.Number == NumberMax {
-				hintTokenCount++
+				g.hintTokenCount++
 			}
 		} else {
-			mistakeTokenCount--
+			g.mistakeTokenCount--
 		}
 	} else {
 		return fmt.Errorf("unknown command type %v", commandType)
@@ -271,10 +308,10 @@ func doCommand(player *Player, commandType string, params json.RawMessage) error
 	return nil
 }
 
-func processAllCommands() {
-	for len(newCommands) > 0 {
-		c := <-newCommands
-		lastActivityTick = tickNumber
+func (g *Game) processAllCommands() {
+	for len(g.newCommands) > 0 {
+		c := <-g.newCommands
+		g.lastActivityTick = g.tickNumber
 
 		command := struct {
 			Type   string          `json:"type"`
@@ -287,7 +324,7 @@ func processAllCommands() {
 			continue
 		}
 
-		err = doCommand(c.player, command.Type, command.Params)
+		err = g.doCommand(c.player, command.Type, command.Params)
 		if err != nil {
 			log.Printf("error in doing command: %s", err.Error())
 		}
@@ -298,7 +335,7 @@ func (p *Card) EncodeMsgpack(enc *msgpack.Encoder) error {
 	return enc.Encode([]interface{}{p.Id, p.X, p.Y, p.Width, p.Height, p.Color, p.ColorHinted, p.Number, p.NumberHinted})
 }
 
-func serializeWorld(player *Player) []byte {
+func (g *Game) serializeWorld(player *Player) []byte {
 	packet := struct {
 		DeskObjects           []HasShape
 		TickNumber            int
@@ -309,27 +346,27 @@ func serializeWorld(player *Player) []byte {
 		MistakeTokenCount     int
 		RemainingDeckCount    int
 	}{
-		deskObjects,
-		tickNumber,
+		g.deskObjects,
+		g.tickNumber,
 		nil,
-		successfulPlayedCount,
-		discardedCount,
-		hintTokenCount,
-		mistakeTokenCount,
-		len(deck),
+		g.successfulPlayedCount,
+		g.discardedCount,
+		g.hintTokenCount,
+		g.mistakeTokenCount,
+		len(g.deck),
 	}
 
 	playerId := -1
 
-	for idx, p := range playerList {
+	for idx, p := range g.playerList {
 		if p == player {
 			playerId = idx
 		}
 	}
 
 	// Order players array so each player thinks he is the first player.
-	players := append([]*Player{}, playerList[playerId:]...)
-	players = append(players, playerList[:playerId]...)
+	players := append([]*Player{}, g.playerList[playerId:]...)
+	players = append(players, g.playerList[:playerId]...)
 	packet.Players = players
 
 	// Conceal player cards' number/color
@@ -356,13 +393,13 @@ func serializeWorld(player *Player) []byte {
 	return serializedWorld
 }
 
-func broadcastWorld() {
-	if tickNumber-lastActivityTick > inactivityTickCount {
+func (g *Game) broadcastWorld() {
+	if g.tickNumber-g.lastActivityTick > inactivityTickCount {
 		return
 	}
 	var serializedWorld []byte
 
-	for _, player := range playerList {
+	for _, player := range g.playerList {
 		player.wsMutex.Lock()
 		ws := player.ws
 		player.wsMutex.Unlock()
@@ -371,7 +408,7 @@ func broadcastWorld() {
 			continue
 		}
 
-		serializedWorld = serializeWorld(player)
+		serializedWorld = g.serializeWorld(player)
 		err := ws.WriteMessage(websocket.BinaryMessage, serializedWorld)
 		if err != nil {
 			log.Printf("Dropping client because of error: %#v", err)
@@ -390,77 +427,30 @@ func Shuffle(slice interface{}) {
 	}
 }
 
-func getCardFromDeck() *Card {
-	card := deck[0]
-	deck = deck[1:]
+func (g *Game) getCardFromDeck() *Card {
+	card := g.deck[0]
+	g.deck = g.deck[1:]
 	return card
 }
 
-func initObjects() {
-	lastId := 0
-	nextId := func() int {
-		lastId++
-		return lastId
-	}
-
-	deskObjects = append(deskObjects, &StaticObject{BaseObject{Id: nextId(), X: 200, Y: 100, Width: 10, Height: 10}})
-	deskObjects = append(deskObjects, &RotatingObject{BaseObject{Id: nextId(), Height: 2, Width: 2}, 200, 100, 40})
-
-	var color CardColor
-	const deckX = 300
-	const deckY = 100
-	for color = 1; color <= ColorCount; color++ {
-		deck = append(deck,
-			newCard(nextId(), deckX, deckY, color, 1, &cardsScope),
-			newCard(nextId(), deckX, deckY, color, 1, &cardsScope),
-			newCard(nextId(), deckX, deckY, color, 1, &cardsScope),
-			newCard(nextId(), deckX, deckY, color, 2, &cardsScope),
-			newCard(nextId(), deckX, deckY, color, 2, &cardsScope),
-			newCard(nextId(), deckX, deckY, color, 3, &cardsScope),
-			newCard(nextId(), deckX, deckY, color, 3, &cardsScope),
-			newCard(nextId(), deckX, deckY, color, 4, &cardsScope),
-			newCard(nextId(), deckX, deckY, color, 4, &cardsScope),
-			newCard(nextId(), deckX, deckY, color, 5, &cardsScope),
-		)
-	}
-	Shuffle(deck)
-
-	//for x := 0; x < 4; x++ {
-	//	deskObjects = append(deskObjects, getCardFromDeck())
-	//}
-
-	//for x := 0; x < 4; x++ {
-	//	deskObjects = append(deskObjects, newHintToken(nextId(), 300+40*x, 350))
-	//}
-	//for x := 0; x < 4; x++ {
-	//	deskObjects = append(deskObjects, newHintToken(nextId(), 300+40*x, 375))
-	//}
-	//for x := 0; x < 3; x++ {
-	//	deskObjects = append(deskObjects, newMistakeToken(nextId(), 320+40*x, 410))
-	//}
-}
-
 // The game run in a single-thread environment. Other goroutines write to channels to interoperate with game engine.
-func gameLoop(tickPerSecond int) {
-	tickInterval := time.Duration(time.Second.Nanoseconds() / int64(tickPerSecond))
-	fmt.Println("Tick per sec", tickPerSecond, "each", tickInterval)
+func (g *Game) gameLoop() {
+	tickInterval := time.Duration(time.Second.Nanoseconds() / int64(g.tickPerSecond))
+	fmt.Println("Tick per sec", g.tickPerSecond, "each", tickInterval)
 
 	msgpack.RegisterExt(0, new(Card))
 
-	initObjects()
-
 	var durationTotal int64 = 0
-	for tickNumber = 0; ; tickNumber++ {
+	for g.tickNumber = 0; ; g.tickNumber++ {
 		tickBegin := time.Now()
-		passedSeconds = float64(tickNumber) / float64(tickPerSecond)
 
-		doTick()
+		g.doTick()
 
 		duration := time.Since(tickBegin)
 		durationTotal += duration.Nanoseconds()
 		remaining := time.Duration(tickInterval.Nanoseconds() - duration.Nanoseconds())
-		if tickNumber%100 == 0 {
-			fmt.Printf("Tick %6v avg tick duration %10v\n", tickNumber, time.Duration(durationTotal/100))
+		if g.tickNumber%100 == 0 {
+			fmt.Printf("Tick %6v avg tick duration %10v\n", g.tickNumber, time.Duration(durationTotal/100))
 			durationTotal = 0
 		}
 		if remaining > 0 {
