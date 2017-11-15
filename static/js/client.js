@@ -8,7 +8,7 @@
     function myVectorUnpacker(buffer) {
         var array = msgpack.decode(buffer);
         var obj = {};
-        var fields = ['Id', 'X', 'Y', 'Width', 'Height', 'Color', 'ColorHinted', 'Number', 'NumberHinted']
+        var fields = ['Id', 'Color', 'ColorHinted', 'Number', 'NumberHinted']
         array.forEach((x, idx) => obj[fields[idx]] = x)
         return obj
     }
@@ -235,8 +235,6 @@ window.addEventListener("load", function() {
                 gameObj: obj,
                 gameClass: obj.Class,
             }
-            $o.style.width = obj.Width + 'px'
-            $o.style.height = obj.Height + 'px'
 
             if (obj.Class == 'desk_item') {
                 $o.draggable = true

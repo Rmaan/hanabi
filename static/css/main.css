@@ -34,8 +34,8 @@ body {
 }
 
 .obj_block, .obj_desk_item {
-    width: 10px;
-    height: 10px;
+    width: 3px;
+    height: 3px;
     position: absolute;
 
     transition: all 100ms ease-in;
@@ -44,14 +44,14 @@ body {
 
 .obj_block {
     background-color: black;
-    /*border-radius: 50%;*/
+    border-radius: 50%;
 }
 
 .game-obj {
     background-size: cover;
 }
 
-.obj_desk_card {
+.obj_desk_card, .obj_player_card {
     width: 70px;
     height: 98px;
     background-size: cover;

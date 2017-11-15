@@ -22,7 +22,7 @@ type Game struct {
 	playerList  []*Player
 	newCommands chan playerCommandRaw
 
-	deskObjects           []HasShape
+	deskObjects           []*BaseObject
 	deck                  []*Card
 	successfulPlayedCount [ColorCount]int
 	discardedCount        int
@@ -32,8 +32,6 @@ type Game struct {
 
 func newGame(tickPerSecond int) *Game {
 	g := &Game{
-		deskObjects: make([]HasShape, 0),
-		playerList:  make([]*Player, 0),
 		newCommands: make(chan playerCommandRaw, 100),
 
 		//deck: []*Card  // ???
@@ -48,24 +46,21 @@ func newGame(tickPerSecond int) *Game {
 		return lastId
 	}
 
-	g.deskObjects = append(g.deskObjects, &StaticObject{BaseObject{Id: nextId(), X: 200, Y: 100, Width: 10, Height: 10}})
-	g.deskObjects = append(g.deskObjects, &RotatingObject{BaseObject{Id: nextId(), Height: 2, Width: 2}, 200, 100, 40})
+	g.deskObjects = append(g.deskObjects, &BaseObject{Id: nextId(), Height: 2, Width: 2, centerX: 200, centerY: 100, radius: 40})
 
 	var color CardColor
-	const deckX = 300
-	const deckY = 100
 	for color = 1; color <= ColorCount; color++ {
 		g.deck = append(g.deck,
-			newCard(nextId(), deckX, deckY, color, 1),
-			newCard(nextId(), deckX, deckY, color, 1),
-			newCard(nextId(), deckX, deckY, color, 1),
-			newCard(nextId(), deckX, deckY, color, 2),
-			newCard(nextId(), deckX, deckY, color, 2),
-			newCard(nextId(), deckX, deckY, color, 3),
-			newCard(nextId(), deckX, deckY, color, 3),
-			newCard(nextId(), deckX, deckY, color, 4),
-			newCard(nextId(), deckX, deckY, color, 4),
-			newCard(nextId(), deckX, deckY, color, 5),
+			newCard(nextId(), color, 1),
+			newCard(nextId(), color, 1),
+			newCard(nextId(), color, 1),
+			newCard(nextId(), color, 2),
+			newCard(nextId(), color, 2),
+			newCard(nextId(), color, 3),
+			newCard(nextId(), color, 3),
+			newCard(nextId(), color, 4),
+			newCard(nextId(), color, 4),
+			newCard(nextId(), color, 5),
 		)
 	}
 	Shuffle(g.deck)
@@ -141,13 +136,8 @@ func (g *Game) getPlayerForSocket(ws *websocket.Conn) *Player {
 		isObserver: false,
 	}
 
-	cardX := 300
 	for x := 0; x < 5; x++ {
 		c := g.getCardFromDeck()
-		randPart := rand.Intn(40) - 10
-		c.X = cardX + randPart
-		cardX += randPart + c.Width
-		c.Y = 450
 		player.Cards = append(player.Cards, c)
 	}
 
@@ -179,61 +169,8 @@ func (g *Game) doTick() {
 	g.broadcastWorld()
 }
 
-func (g *Game) findObjById(id int) (HasShape, error) {
-	for _, x := range g.deskObjects {
-		if x.getId() == id {
-			return x, nil
-		}
-	}
-
-	for _, p := range g.playerList {
-		for _, x := range p.Cards {
-			if x.getId() == id {
-				return x, nil
-			}
-		}
-	}
-	return nil, fmt.Errorf("Invalid object id")
-}
-
 func (g *Game) doCommand(player *Player, commandType string, params json.RawMessage) error {
-	if commandType == "move" {
-		moveCommand := struct {
-			X, Y, TargetId int
-		}{}
-
-		err := json.Unmarshal(params, &moveCommand)
-		if err != nil {
-			return fmt.Errorf("err in params %v `%s`", err, params)
-		}
-		log.Printf("move command %+v", moveCommand)
-
-		obj, err := g.findObjById(moveCommand.TargetId)
-		if err != nil {
-			return err
-		}
-		if obj, ok := obj.(Mover); ok {
-			obj.setX(moveCommand.X)
-			obj.setY(moveCommand.Y)
-		}
-	} else if commandType == "flip" {
-		flipCommand := struct {
-			TargetId int
-		}{}
-
-		err := json.Unmarshal(params, &flipCommand)
-		if err != nil {
-			return fmt.Errorf("err in params %v `%s`", err, params)
-		}
-		log.Printf("flip command %+v", flipCommand)
-		obj, err := g.findObjById(flipCommand.TargetId)
-		if err != nil {
-			return err
-		}
-		if obj, ok := obj.(Flipper); ok {
-			obj.flip()
-		}
-	} else if commandType == "hint" {
+	if commandType == "hint" {
 		hintCommand := struct {
 			PlayerId int
 			IsColor  bool
@@ -332,12 +269,12 @@ func (g *Game) processAllCommands() {
 }
 
 func (p *Card) EncodeMsgpack(enc *msgpack.Encoder) error {
-	return enc.Encode([]interface{}{p.Id, p.X, p.Y, p.Width, p.Height, p.Color, p.ColorHinted, p.Number, p.NumberHinted})
+	return enc.Encode([]interface{}{p.Id, p.Color, p.ColorHinted, p.Number, p.NumberHinted})
 }
 
 func (g *Game) serializeWorld(player *Player) []byte {
 	packet := struct {
-		DeskObjects           []HasShape
+		DeskObjects           []*BaseObject
 		TickNumber            int
 		Players               []*Player
 		SuccessfulPlayedCount [5]int
