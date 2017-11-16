@@ -319,9 +319,10 @@ window.addEventListener("load", function() {
             }
         })
 
-        world.NewChats.forEach(chat => {
-            var $el = htmlToDom(`<div class="line"><span class="player-name">${world.Players[chat.PlayerId].Name}</span>: <span class="text">${chat.Text}</span></div>`)
+        world.NewLogs.forEach(log => {
+            var $el = htmlToDom(`<div class="line"><span class="player-name">${world.Players[log.PlayerId].Name}</span>: <span class="text">${log.Text}</span></div>`)
             $msgLog.appendChild($el)
+            $el.classList.toggle("system-msg", !log.IsChat)
         })
         $msgLog.scrollTop = $msgLog.scrollHeight
     }

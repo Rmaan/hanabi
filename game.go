@@ -28,12 +28,13 @@ type Game struct {
 	discardedCount        int
 	hintTokenCount        int
 	mistakeTokenCount     int
-	newChats              []incomingChat
+	newLogs               []logMessage
 }
 
-type incomingChat struct {
+type logMessage struct {
 	player *Player
 	text   string
+	isChat bool
 }
 
 func newGame(tickPerSecond int) *Game {
@@ -42,7 +43,7 @@ func newGame(tickPerSecond int) *Game {
 		hintTokenCount:    8,
 		mistakeTokenCount: 3,
 		tickPerSecond:     tickPerSecond,
-		newChats:          make([]incomingChat, 0, 10), // This slice is networked don't set it to nil
+		newLogs:           make([]logMessage, 0, 10), // This slice is networked don't set it to nil
 	}
 
 	lastId := 0
@@ -179,7 +180,7 @@ func (g *Game) doTick() {
 }
 
 func (g *Game) afterTick() {
-	g.newChats = g.newChats[:0]
+	g.newLogs = g.newLogs[:0]
 }
 
 func (g *Game) doCommand(player *Player, commandType string, params json.RawMessage) error {
@@ -217,6 +218,8 @@ func (g *Game) doCommand(player *Player, commandType string, params json.RawMess
 			}
 		}
 		g.hintTokenCount--
+
+		g.newLogs = append(g.newLogs, logMessage{player, "Hinted", false})
 	} else if commandType == "discard" {
 		discardCommand := struct {
 			CardIndex int
@@ -230,6 +233,8 @@ func (g *Game) doCommand(player *Player, commandType string, params json.RawMess
 		player.Cards = append(append(player.Cards[0:discardCommand.CardIndex], player.Cards[discardCommand.CardIndex+1:]...), g.getCardFromDeck())
 		g.discardedCount++
 		g.hintTokenCount++
+
+		g.newLogs = append(g.newLogs, logMessage{player, "Discarded", false})
 	} else if commandType == "play" {
 		playCommand := struct {
 			CardIndex int
@@ -251,6 +256,8 @@ func (g *Game) doCommand(player *Player, commandType string, params json.RawMess
 		} else {
 			g.mistakeTokenCount--
 		}
+
+		g.newLogs = append(g.newLogs, logMessage{player, "Played", false})
 	} else if commandType == "rename" {
 		renameCommand := struct {
 			NewName string
@@ -272,7 +279,7 @@ func (g *Game) doCommand(player *Player, commandType string, params json.RawMess
 		if err != nil {
 			return fmt.Errorf("err in params %v `%s`", err, params)
 		}
-		g.newChats = append(g.newChats, incomingChat{player, chatCommand.Text})
+		g.newLogs = append(g.newLogs, logMessage{player, chatCommand.Text, true})
 	} else {
 		return fmt.Errorf("unknown command type %v", commandType)
 	}
@@ -314,11 +321,11 @@ func (g *Game) playerIdToAbsolute(thisPlayerIndex, relativePlayerId int) int {
 	return (relativePlayerId + thisPlayerIndex) % len(g.playerList)
 }
 
-
 func (g *Game) serializeWorld(player *Player) []byte {
 	type SerializedChat struct {
 		PlayerId int
 		Text     string
+		IsChat   bool
 	}
 
 	packet := struct {
@@ -330,7 +337,7 @@ func (g *Game) serializeWorld(player *Player) []byte {
 		HintTokenCount        int
 		MistakeTokenCount     int
 		RemainingDeckCount    int
-		NewChats              []SerializedChat
+		NewLogs               []SerializedChat
 	}{
 		g.deskObjects,
 		g.tickNumber,
@@ -340,13 +347,13 @@ func (g *Game) serializeWorld(player *Player) []byte {
 		g.hintTokenCount,
 		g.mistakeTokenCount,
 		len(g.deck),
-		make([]SerializedChat, len(g.newChats)),
+		make([]SerializedChat, len(g.newLogs)),
 	}
 
 	playerId := player.playerId
 
-	for idx, chat := range g.newChats {
-		packet.NewChats[idx] = SerializedChat{g.playerIdToRelative(playerId, chat.player.playerId), chat.text}
+	for idx, chat := range g.newLogs {
+		packet.NewLogs[idx] = SerializedChat{g.playerIdToRelative(playerId, chat.player.playerId), chat.text, chat.isChat}
 	}
 
 	// Order players array so each player thinks he is the first player.
