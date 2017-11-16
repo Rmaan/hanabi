@@ -324,7 +324,10 @@ window.addEventListener("load", function() {
             $msgLog.appendChild($el)
             $el.classList.toggle("system-msg", !log.IsChat)
         })
-        $msgLog.scrollTop = $msgLog.scrollHeight
+        
+        // Auto scroll down
+        if (log.length)
+            $msgLog.scrollTop = $msgLog.scrollHeight
     }
 
     function htmlToDom(htmlString) {
