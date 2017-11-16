@@ -40,8 +40,9 @@ window.addEventListener("load", function() {
     <div class="player-2 players"><div class="cards"></div><div class="name"></div></div>
     <div class="player-3 players"><div class="cards"></div><div class="name"></div></div>
     <div class="player-4 players"><div class="cards"></div><div class="name"></div></div>
+    <div id="msg-box"><div class="msg-log"></div><div class="send"><form><input type="text"><button type="submit">Send</button></form></div></div>
 </div>
-<div id="msg-box"><div class="msg-log"></div><div class="send"><form><input type="text"><button type="submit">Send</button></form></div></div>`
+`
 
     var $canvas = document.getElementById('canvas');
     var $status = document.getElementById('status');
@@ -324,9 +325,9 @@ window.addEventListener("load", function() {
             $msgLog.appendChild($el)
             $el.classList.toggle("system-msg", !log.IsChat)
         })
-        
+
         // Auto scroll down
-        if (log.length)
+        if (world.NewLogs.length)
             $msgLog.scrollTop = $msgLog.scrollHeight
     }
 

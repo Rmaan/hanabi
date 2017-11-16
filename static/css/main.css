@@ -17,7 +17,7 @@ body {
 
 #status {
     position: absolute;
-    top: 20%;
+    top: 250px;
     left: calc(50% - 400px / 2);
     width: 400px;
     background: #ddd;
@@ -130,9 +130,9 @@ body {
 }
 .hanabis {
     position: absolute;
-    top: calc(50% - 70px);
+    top: 280px;
     left: calc(50% - 250px);
-    height: 140px;
+    height: 120px;
     width: 500px;
 
     display: flex;
@@ -167,12 +167,15 @@ body {
 }
 
 #msg-box {
+    position: absolute;
+    top: 0;
+    left: calc(50% - 400px / 2);
+
     display: flex;
     flex-direction: column;
 
-    height: 300px;
+    height: 200px;
     width: 400px;
-    margin: 20px;
     border: 1px solid #ddd;
 }
 #msg-box .msg-log {
