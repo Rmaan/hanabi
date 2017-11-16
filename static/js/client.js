@@ -40,7 +40,8 @@ window.addEventListener("load", function() {
     <div class="player-2 players"><div class="cards"></div><div class="name"></div></div>
     <div class="player-3 players"><div class="cards"></div><div class="name"></div></div>
     <div class="player-4 players"><div class="cards"></div><div class="name"></div></div>
-</div>`
+</div>
+<div id="msg-box"><div class="msg-log"></div><div class="send"><form><input type="text"><button type="submit">Send</button></form></div></div>`
 
     var $canvas = document.getElementById('canvas');
     var $status = document.getElementById('status');
@@ -48,6 +49,8 @@ window.addEventListener("load", function() {
     var $hanabis = document.querySelector('.hanabis');
     var $selfCmdPallet = document.querySelector('.self-command-pallet');
     var $othersCmdPallet = document.querySelector('.others-command-pallet');
+    var $msgBox = document.getElementById('msg-box');
+    var $msgLog = $msgBox.querySelector('.msg-log');
     var hoveredSelfCardIndex = null
     var lastMoveLocationX, lastMoveLocationY
     var hoveredOthersCard = {
@@ -221,6 +224,15 @@ window.addEventListener("load", function() {
         }
     })
 
+    $msgBox.querySelector('form').onsubmit = e => {
+        e.preventDefault()
+        var $inp = e.target.querySelector('input')
+        sendCommand('chat', {
+            Text: $inp.value
+        })
+        $inp.value = ''
+    }
+
     function getObjectDiv(obj, $parent) {
         var domId = 'game-id-' + obj.Id
         var $o = document.getElementById(domId)
@@ -306,6 +318,18 @@ window.addEventListener("load", function() {
                 document.getElementById(id).remove()
             }
         })
+
+        world.NewChats.forEach(chat => {
+            var $el = htmlToDom(`<div class="line"><span class="player-name">${world.Players[chat.PlayerId].Name}</span>: <span class="text">${chat.Text}</span></div>`)
+            $msgLog.appendChild($el)
+        })
+        $msgLog.scrollTop = $msgLog.scrollHeight
+    }
+
+    function htmlToDom(htmlString) {
+        var wrapper= document.createElement('div');
+        wrapper.innerHTML= htmlString;
+        return wrapper.firstChild;
     }
 
     var ws = new WebSocket(window.args.ws_url);

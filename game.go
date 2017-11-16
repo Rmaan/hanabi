@@ -28,15 +28,21 @@ type Game struct {
 	discardedCount        int
 	hintTokenCount        int
 	mistakeTokenCount     int
-	newChats []struct{*Player; string}
+	newChats              []incomingChat
+}
+
+type incomingChat struct {
+	player *Player
+	text   string
 }
 
 func newGame(tickPerSecond int) *Game {
 	g := &Game{
-		newCommands: make(chan playerCommandRaw, 100),
+		newCommands:       make(chan playerCommandRaw, 100),
 		hintTokenCount:    8,
 		mistakeTokenCount: 3,
 		tickPerSecond:     tickPerSecond,
+		newChats:          make([]incomingChat, 0, 10), // This slice is networked don't set it to nil
 	}
 
 	lastId := 0
@@ -71,6 +77,7 @@ func (g *Game) passedSeconds() float64 {
 }
 
 type Player struct {
+	playerId   int
 	ws         *websocket.Conn // ws == nil means player is disconnected
 	wsMutex    sync.Mutex      // Hold this if you want to read/modify ws (the pointer itself)
 	Name       string
@@ -130,6 +137,7 @@ func (g *Game) getPlayerForSocket(ws *websocket.Conn) *Player {
 	}
 
 	player := &Player{
+		playerId:   len(g.playerList),
 		ws:         ws,
 		Name:       fmt.Sprintf("Player %d", len(g.playerList)+1),
 		isObserver: false,
@@ -166,6 +174,12 @@ func (g *Game) doTick() {
 	}
 
 	g.broadcastWorld()
+
+	g.afterTick()
+}
+
+func (g *Game) afterTick() {
+	g.newChats = g.newChats[:0]
 }
 
 func (g *Game) doCommand(player *Player, commandType string, params json.RawMessage) error {
@@ -189,8 +203,7 @@ func (g *Game) doCommand(player *Player, commandType string, params json.RawMess
 				thisPlayerIndex = idx
 			}
 		}
-		// Translate to absolute ID space
-		hintCommand.PlayerId = (hintCommand.PlayerId + thisPlayerIndex) % len(g.playerList)
+		hintCommand.PlayerId = g.playerIdToAbsolute(thisPlayerIndex, hintCommand.PlayerId)
 		targetPlayer := g.playerList[hintCommand.PlayerId]
 		for _, c := range targetPlayer.Cards {
 			if hintCommand.IsColor {
@@ -251,6 +264,15 @@ func (g *Game) doCommand(player *Player, commandType string, params json.RawMess
 			return fmt.Errorf("invalid name length")
 		}
 		player.Name = renameCommand.NewName
+	} else if commandType == "chat" {
+		chatCommand := struct {
+			Text string
+		}{}
+		err := json.Unmarshal(params, &chatCommand)
+		if err != nil {
+			return fmt.Errorf("err in params %v `%s`", err, params)
+		}
+		g.newChats = append(g.newChats, incomingChat{player, chatCommand.Text})
 	} else {
 		return fmt.Errorf("unknown command type %v", commandType)
 	}
@@ -284,7 +306,21 @@ func (p *Card) EncodeMsgpack(enc *msgpack.Encoder) error {
 	return enc.Encode([]interface{}{p.Id, p.Color, p.ColorHinted, p.Number, p.NumberHinted})
 }
 
+func (g *Game) playerIdToRelative(thisPlayerIndex, absolutePlayerId int) int {
+	return (absolutePlayerId - thisPlayerIndex + len(g.playerList)) % len(g.playerList)
+}
+
+func (g *Game) playerIdToAbsolute(thisPlayerIndex, relativePlayerId int) int {
+	return (relativePlayerId + thisPlayerIndex) % len(g.playerList)
+}
+
+
 func (g *Game) serializeWorld(player *Player) []byte {
+	type SerializedChat struct {
+		PlayerId int
+		Text     string
+	}
+
 	packet := struct {
 		DeskObjects           []*BaseObject
 		TickNumber            int
@@ -294,6 +330,7 @@ func (g *Game) serializeWorld(player *Player) []byte {
 		HintTokenCount        int
 		MistakeTokenCount     int
 		RemainingDeckCount    int
+		NewChats              []SerializedChat
 	}{
 		g.deskObjects,
 		g.tickNumber,
@@ -303,14 +340,13 @@ func (g *Game) serializeWorld(player *Player) []byte {
 		g.hintTokenCount,
 		g.mistakeTokenCount,
 		len(g.deck),
+		make([]SerializedChat, len(g.newChats)),
 	}
 
-	playerId := -1
+	playerId := player.playerId
 
-	for idx, p := range g.playerList {
-		if p == player {
-			playerId = idx
-		}
+	for idx, chat := range g.newChats {
+		packet.NewChats[idx] = SerializedChat{g.playerIdToRelative(playerId, chat.player.playerId), chat.text}
 	}
 
 	// Order players array so each player thinks he is the first player.

@@ -166,3 +166,27 @@ body {
     padding: 7px;
 }
 
+#msg-box {
+    display: flex;
+    flex-direction: column;
+
+    height: 300px;
+    width: 400px;
+    margin: 20px;
+    border: 1px solid #ddd;
+}
+#msg-box .msg-log {
+    flex-grow: 1;
+    overflow: auto;
+}
+#msg-box .send {
+    height: 25px;
+    flex-grow: 0;
+    padding: 2px;
+}
+#msg-box .send input {
+    width: 300px;
+}
+#msg-box .send button {
+    margin-left: 20px;
+}
