@@ -103,9 +103,6 @@ window.addEventListener("load", function() {
         sendMoveCommand(ev)
     }
 
-    function flipItem(objId) {
-        sendCommand('flip', {'TargetId': objId})
-    }
 
     function hintPlayer(playerId, isColor, value) {
         sendCommand('hint', {
@@ -246,9 +243,6 @@ window.addEventListener("load", function() {
                     }
                     console.log('drag start', dragging)
                 }
-                $o.onclick = ev => {
-                    flipItem(obj.Id)
-                }
             }
 
             $parent.appendChild($o)
@@ -335,7 +329,5 @@ window.addEventListener("load", function() {
     }
 
     window.ws = ws
-    window.hint = hintPlayer
-    window.discard = discardCard
-    window.play = playCard
+    window.cmd = sendCommand
 });

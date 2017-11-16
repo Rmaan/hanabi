@@ -28,13 +28,12 @@ type Game struct {
 	discardedCount        int
 	hintTokenCount        int
 	mistakeTokenCount     int
+	newChats []struct{*Player; string}
 }
 
 func newGame(tickPerSecond int) *Game {
 	g := &Game{
 		newCommands: make(chan playerCommandRaw, 100),
-
-		//deck: []*Card  // ???
 		hintTokenCount:    8,
 		mistakeTokenCount: 3,
 		tickPerSecond:     tickPerSecond,
@@ -239,6 +238,19 @@ func (g *Game) doCommand(player *Player, commandType string, params json.RawMess
 		} else {
 			g.mistakeTokenCount--
 		}
+	} else if commandType == "rename" {
+		renameCommand := struct {
+			NewName string
+		}{}
+		err := json.Unmarshal(params, &renameCommand)
+		if err != nil {
+			return fmt.Errorf("err in params %v `%s`", err, params)
+		}
+		l := len(renameCommand.NewName)
+		if l == 0 || l > 100 {
+			return fmt.Errorf("invalid name length")
+		}
+		player.Name = renameCommand.NewName
 	} else {
 		return fmt.Errorf("unknown command type %v", commandType)
 	}
