@@ -145,7 +145,7 @@ func (g *Game) getPlayerForSocket(ws *websocket.Conn) *Player {
 	}
 
 	for x := 0; x < 5; x++ {
-		c := g.getCardFromDeck()
+		c, _ := g.getCardFromDeck()
 		player.Cards = append(player.Cards, c)
 	}
 
@@ -229,8 +229,13 @@ func (g *Game) doCommand(player *Player, commandType string, params json.RawMess
 			return fmt.Errorf("err in params %v `%s`", err, params)
 		}
 		discardCommand.CardIndex = clamp(discardCommand.CardIndex, 0, len(player.Cards)-1)
-		// Put the new card at the end to be consistent with UI
-		player.Cards = append(append(player.Cards[0:discardCommand.CardIndex], player.Cards[discardCommand.CardIndex+1:]...), g.getCardFromDeck())
+
+		newCard, ok := g.getCardFromDeck()
+		// Put the new newCard at the end to be consistent with UI
+		player.Cards = append(player.Cards[0:discardCommand.CardIndex], player.Cards[discardCommand.CardIndex+1:]...)
+		if ok {
+			player.Cards = append(player.Cards, newCard)
+		}
 		g.discardedCount++
 		g.hintTokenCount++
 
@@ -245,8 +250,14 @@ func (g *Game) doCommand(player *Player, commandType string, params json.RawMess
 		}
 		playCommand.CardIndex = clamp(playCommand.CardIndex, 0, len(player.Cards)-1)
 		card := player.Cards[playCommand.CardIndex]
+
 		// Put the new card at the end to be consistent with UI
-		player.Cards = append(append(player.Cards[0:playCommand.CardIndex], player.Cards[playCommand.CardIndex+1:]...), g.getCardFromDeck())
+		newCard, ok := g.getCardFromDeck()
+		// Put the new card at the end to be consistent with UI
+		player.Cards = append(player.Cards[0:playCommand.CardIndex], player.Cards[playCommand.CardIndex+1:]...)
+		if ok {
+			player.Cards = append(player.Cards, newCard)
+		}
 
 		if g.successfulPlayedCount[card.Color-1] == card.Number-1 {
 			g.successfulPlayedCount[card.Color-1]++
@@ -419,10 +430,13 @@ func Shuffle(slice interface{}) {
 	}
 }
 
-func (g *Game) getCardFromDeck() *Card {
+func (g *Game) getCardFromDeck() (*Card, bool) {
+	if len(g.deck) == 0 {
+		return nil, false
+	}
 	card := g.deck[0]
 	g.deck = g.deck[1:]
-	return card
+	return card, true
 }
 
 // The game run in a single-thread environment. Other goroutines write to channels to interoperate with game engine.
