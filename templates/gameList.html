@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>game list</title>
+</head>
+<body>
+    <h2>Active games</h2>
+    <ul>
+    {{range $gameId, $ := .}}
+        <li><a href="/game/{{$gameId}}">Join game {{$gameId}}</a></li>
+    {{else}}
+        No active game found
+    {{end}}
+    </ul>
+    <br>
+    <a href="/game/new">Create new game</a>
+</body>
+</html>

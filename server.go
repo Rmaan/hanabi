@@ -2,63 +2,73 @@ package hanabi
 
 import (
 	"flag"
+	"fmt"
+	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"github.com/vmihailenco/msgpack"
 	"html/template"
 	"log"
 	"math/rand"
 	"net/http"
+	"strconv"
 	"time"
 )
 
-var homeTemplate = template.Must(template.New("").Parse(`<!DOCTYPE html>
-<html>
-<head>
-<title>HANABI</title>
-<link href="/static/css/main.css" rel="stylesheet">
-</head>
-<meta charset="utf-8">
-<body>
-<script>
-window.args = {
-	"ws_url": {{.}},
-}
-</script>
-<script src="/static/js/pkg/msgpack-lite.min.js"></script>
-<script src="/static/js/pkg/underscore-min.js"></script>
-<script src="/static/js/client.js"></script>
-</body>
-</html>
-`))
+const templatesDirGlob = "templates/*"
+
+var gameTemplate = template.Must(template.New("game.html").ParseGlob(templatesDirGlob))
+var gameListTemplate = template.Must(template.New("gameList.html").ParseGlob(templatesDirGlob))
 
 var upgrader = websocket.Upgrader{}
-var newClients = make(chan *websocket.Conn, 10)
+var activeGames = make(map[int]*Game)
+var tickPerSecond int
 
-func serveHome(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" {
-		http.Error(w, "Not found", 404)
-		return
+func panicIfNotNil(err error) {
+	if err != nil {
+		panic(err)
 	}
-	if r.Method != "GET" {
-		http.Error(w, "Method not allowed", 405)
-		return
-	}
+}
 
+func serveGame(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
 	w.Header().Set("Content-Type", "text/html")
-	homeTemplate.Execute(w, "ws://"+r.Host+"/ws")
-
-	//http.ServeFile(w, r, "home.html")
-	//w.Write([]byte("HI HI HI!\n"))
+	panicIfNotNil(gameTemplate.Execute(w, fmt.Sprintf("ws://%s/game/%s/socket", r.Host, vars["gameId"])))
 }
 
 func serveWs(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	gameId, err := strconv.Atoi(vars["gameId"])
+	game, ok := activeGames[gameId]
+	log.Println(1)
+	if err != nil || !ok {
+		http.Error(w, "invalid game", 404)
+		return
+	}
+	log.Println(2)
+
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println("upgrade:", err)
 		return
 	}
-	//defer ws.Close()
+	log.Println(3)
 
-	newClients <- ws
+	game.newClients <- ws
+	log.Println(game, ok)
+}
+
+func serveGameList(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html")
+	panicIfNotNil(gameListTemplate.Execute(w, activeGames))
+}
+
+func serveNewGame(w http.ResponseWriter, r *http.Request) {
+	game := newGame(tickPerSecond)
+	newId := 1e5 + rand.Intn(1e6-1e5)
+	// TODO fix data race
+	activeGames[newId] = game
+	go game.gameLoop()
+	http.Redirect(w, r, "/game/"+strconv.Itoa(newId), http.StatusFound)
 }
 
 func NoCache(h http.Handler) http.Handler {
@@ -75,18 +85,25 @@ func NoCache(h http.Handler) http.Handler {
 }
 
 func RunServerAndGame() {
+	const staticUrl = "/static/"
+	const staticRootPath = "static"
+
 	var addr = flag.String("addr", "127.0.0.1:8080", "http service address")
-	var tickPerSecond = flag.Int("tick", 20, "How many ticks per seconds will server has.")
+	flag.IntVar(&tickPerSecond, "tick", 20, "How many ticks per seconds will server has.")
 	flag.Parse()
 
 	rand.Seed(time.Now().UnixNano())
-	game := newGame(*tickPerSecond)
-	go game.gameLoop()
+	msgpack.RegisterExt(0, new(Card))
 
-	http.HandleFunc("/", serveHome)
-	http.HandleFunc("/ws", serveWs)
-	http.Handle("/static/", NoCache(http.StripPrefix("/static/", http.FileServer(http.Dir("static")))))
+	r := mux.NewRouter()
 
-	//http.Handle("/static", fs)
+	r.HandleFunc("/", serveGameList).Methods("GET")
+	r.HandleFunc("/game/new", serveNewGame).Methods("GET")
+	r.HandleFunc("/game/{gameId:[0-9]+}", serveGame).Methods("GET")
+	r.HandleFunc("/game/{gameId:[0-9]+}/socket", serveWs).Methods("GET")
+	r.PathPrefix(staticUrl).Handler(NoCache(http.StripPrefix(staticUrl, http.FileServer(http.Dir(staticRootPath)))))
+
+	http.Handle("/", r)
+	log.Printf("Listening on %v", *addr)
 	log.Fatal(http.ListenAndServe(*addr, nil))
 }

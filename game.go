@@ -29,6 +29,7 @@ type Game struct {
 	hintTokenCount        int
 	mistakeTokenCount     int
 	newLogs               []logMessage
+	newClients            chan *websocket.Conn
 }
 
 type logMessage struct {
@@ -44,6 +45,7 @@ func newGame(tickPerSecond int) *Game {
 		mistakeTokenCount: 3,
 		tickPerSecond:     tickPerSecond,
 		newLogs:           make([]logMessage, 0, 10), // This slice is networked don't set it to nil
+		newClients:        make(chan *websocket.Conn, 10),
 	}
 
 	lastId := 0
@@ -154,8 +156,8 @@ func (g *Game) getPlayerForSocket(ws *websocket.Conn) *Player {
 }
 
 func (g *Game) joinNewClients() {
-	for len(newClients) > 0 {
-		ws := <-newClients
+	for len(g.newClients) > 0 {
+		ws := <-g.newClients
 		g.lastActivityTick = g.tickNumber
 		player := g.getPlayerForSocket(ws)
 
@@ -442,8 +444,6 @@ func (g *Game) getCardFromDeck() (*Card, bool) {
 func (g *Game) gameLoop() {
 	tickInterval := time.Duration(time.Second.Nanoseconds() / int64(g.tickPerSecond))
 	fmt.Println("Tick per sec", g.tickPerSecond, "each", tickInterval)
-
-	msgpack.RegisterExt(0, new(Card))
 
 	var durationTotal int64 = 0
 	for g.tickNumber = 0; ; g.tickNumber++ {
