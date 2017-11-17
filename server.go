@@ -10,7 +10,6 @@ import (
 	"time"
 )
 
-// TODO move HTML to a file!
 var homeTemplate = template.Must(template.New("").Parse(`<!DOCTYPE html>
 <html>
 <head>

@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const inactivityTickCount = 200 // After this many ticks without commands/join, server will stop broadcasting until another command arrives.
+const inactivityTickCount = 10 // After this many ticks without commands/join, server will stop broadcasting until another command arrives.
 
 type Game struct {
 	tickNumber       int
@@ -251,7 +251,6 @@ func (g *Game) doCommand(player *Player, commandType string, params json.RawMess
 		playCommand.CardIndex = clamp(playCommand.CardIndex, 0, len(player.Cards)-1)
 		card := player.Cards[playCommand.CardIndex]
 
-		// Put the new card at the end to be consistent with UI
 		newCard, ok := g.getCardFromDeck()
 		// Put the new card at the end to be consistent with UI
 		player.Cards = append(player.Cards[0:playCommand.CardIndex], player.Cards[playCommand.CardIndex+1:]...)

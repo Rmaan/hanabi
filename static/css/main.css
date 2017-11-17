@@ -17,12 +17,13 @@ body {
 
 #status {
     position: absolute;
-    top: 250px;
-    left: calc(50% - 400px / 2);
-    width: 400px;
+    top: 210px;
+    left: calc(50% - 450px / 2);
+    width: 450px;
     background: #ddd;
     padding: 5px;
     border: 1px solid #bfbfbf;
+    text-align: center;
 }
 
 #canvas {
@@ -130,7 +131,7 @@ body {
 }
 .hanabis {
     position: absolute;
-    top: 280px;
+    top: 240px;
     left: calc(50% - 250px);
     height: 120px;
     width: 500px;
@@ -142,7 +143,7 @@ body {
 .self-command-pallet {
     position: absolute;
     left: calc(50% - 140px / 2);
-    bottom: calc(100% + 15px);
+    bottom: calc(100% + 10px);
     width: 140px;
 
     display: flex;
