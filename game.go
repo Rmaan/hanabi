@@ -221,7 +221,14 @@ func (g *Game) doCommand(player *Player, commandType string, params json.RawMess
 		}
 		g.hintTokenCount--
 
-		g.newLogs = append(g.newLogs, logMessage{player, "Hinted", false})
+		msg := ""
+		if hintCommand.IsColor {
+			msg = fmt.Sprintf("Hinted C%d to %s", hintCommand.Value, targetPlayer.Name)
+		} else {
+			msg = fmt.Sprintf("Hinted %d to %s", hintCommand.Value, targetPlayer.Name)
+		}
+
+		g.newLogs = append(g.newLogs, logMessage{player, msg, false})
 	} else if commandType == "discard" {
 		discardCommand := struct {
 			CardIndex int

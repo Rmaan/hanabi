@@ -39,19 +39,16 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	gameId, err := strconv.Atoi(vars["gameId"])
 	game, ok := activeGames[gameId]
-	log.Println(1)
 	if err != nil || !ok {
 		http.Error(w, "invalid game", 404)
 		return
 	}
-	log.Println(2)
 
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println("upgrade:", err)
 		return
 	}
-	log.Println(3)
 
 	game.newClients <- ws
 	log.Println(game, ok)
