@@ -51,7 +51,6 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	game.newClients <- ws
-	log.Println(game, ok)
 }
 
 func serveGameList(w http.ResponseWriter, r *http.Request) {

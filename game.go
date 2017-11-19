@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"reflect"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -30,6 +31,8 @@ type Game struct {
 	mistakeTokenCount     int
 	newLogs               []logMessage
 	newClients            chan *websocket.Conn
+
+	StatusLine atomic.Value // string displayed in web interface
 }
 
 type logMessage struct {
@@ -47,6 +50,7 @@ func newGame(tickPerSecond int) *Game {
 		newLogs:           make([]logMessage, 0, 10), // This slice is networked don't set it to nil
 		newClients:        make(chan *websocket.Conn, 10),
 	}
+	g.StatusLine.Store("New game")
 
 	lastId := 0
 	nextId := func() int {
@@ -179,6 +183,31 @@ func (g *Game) doTick() {
 	g.broadcastWorld()
 
 	g.afterTick()
+
+	g.setStatusLine()
+}
+
+func (g *Game) setStatusLine() {
+	connectedPlayerCount := 0
+	disconnectedPlayerCount := 0
+
+	for _, p := range g.playerList {
+		if p.ws == nil {
+			disconnectedPlayerCount++
+		} else {
+			connectedPlayerCount++
+		}
+	}
+
+	var line string
+	if connectedPlayerCount == 0 {
+		line = fmt.Sprintf("No players in game (%d disconnected)", disconnectedPlayerCount)
+	} else if disconnectedPlayerCount == 0 {
+		line = fmt.Sprintf("%d players in game", connectedPlayerCount)
+	} else {
+		line = fmt.Sprintf("%d players in game (%d disconnected)", connectedPlayerCount+disconnectedPlayerCount, disconnectedPlayerCount)
+	}
+	g.StatusLine.Store(line)
 }
 
 func (g *Game) afterTick() {

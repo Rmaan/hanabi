@@ -6,8 +6,8 @@
 <body>
     <h2>Active games</h2>
     <ul>
-    {{range $gameId, $ := .}}
-        <li><a href="/game/{{$gameId}}">Join game {{$gameId}}</a></li>
+    {{range $gameId, $game := .}}
+        <li><a href="/game/{{$gameId}}">Join game {{$gameId}} - {{$game.StatusLine.Load}}</a></li>
     {{else}}
         No active game found
     {{end}}
