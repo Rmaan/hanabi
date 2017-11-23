@@ -108,7 +108,7 @@ window.addEventListener("load", function() {
                 h('div.obj_player_card', {
                     styles: {backgroundImage: `url("/static/img/spirits/${card.Color}${card.Number}.png")`},
                     classes: {hover: isSelf && idx == hoveredSelfCardIndex},
-                    key: card.id,
+                    key: card.Id,
                     onclick: isSelf ? (e => hoveredSelfCardIndex = idx) : (e => setOthersCardHoverState(true, playerId, card, e.target))
                 })
             )),
@@ -300,7 +300,8 @@ window.addEventListener("load", function() {
 
         // Auto scroll down msg log
         if (world.NewLogs.length)
-            $msgLog.scrollTop = $msgLog.scrollHeight
+            setTimeout(() => $msgLog.scrollTop = $msgLog.scrollHeight, 50)  // Wait a bit so render is complete
+        // TODO find better location put scroll code
 
         projector.scheduleRender()
     }
