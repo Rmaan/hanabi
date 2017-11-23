@@ -34,6 +34,7 @@ window.addEventListener("load", function() {
         card: null,
         $card: null,
     }
+    var isRenaming = false
 
     // Do first render
     projector.append(document.body, render);
@@ -93,7 +94,20 @@ window.addEventListener("load", function() {
                     onclick: isSelf ? (e => hoveredSelfCardIndex = idx) : (e => setOthersCardHoverState(true, playerId, card, e.target))
                 })
             )),
-            h('div.name', [player.Name]),
+            h('div.name', [
+                isSelf && isRenaming ?
+                    h('form', {
+                        onsubmit: onSubmitRename
+                    }, [
+                        h('input', {value: player.Name})
+                    ])
+                :
+                    h('span', {
+                        onclick: isSelf && !isRenaming ? (e => isRenaming = true) : null
+                    }, [
+                        player.Name
+                    ])
+            ]),
             selfPallet
         ])
     }
@@ -222,11 +236,31 @@ window.addEventListener("load", function() {
         projector.scheduleRender()
     }
 
+    function onSubmitRename(e) {
+        e.preventDefault()
+        var $inp = e.target.querySelector('input')
+        sendCommand('rename', {
+            NewName: $inp.value
+        })
+        isRenaming = false
+    }
+
     // Hide pallets when clicked on somewhere else
     document.body.addEventListener('click', e => {
         if (!e.target.classList.contains('obj_player_card')) {
-            hoveredSelfCardIndex = null  // unhover self
-            setOthersCardHoverState(false)  // unhover others
+            // unhover self
+            hoveredSelfCardIndex = null
+
+            // unhover others
+            setOthersCardHoverState(false)
+
+            projector.scheduleRender()
+        }
+
+        if (!e.target.matches('.player-0 > .name *')) {
+            // cancel renaming
+            isRenaming = false
+
             projector.scheduleRender()
         }
     })
