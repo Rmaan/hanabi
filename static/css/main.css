@@ -48,10 +48,6 @@ body {
     border-radius: 50%;
 }
 
-.game-obj {
-    background-size: cover;
-}
-
 .obj_desk_card, .obj_player_card {
     width: 70px;
     height: 98px;
