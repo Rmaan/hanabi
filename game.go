@@ -14,6 +14,14 @@ import (
 )
 
 const inactivityTickCount = 10 // After this many ticks without commands/join, server will stop broadcasting until another command arrives.
+var colorNames = [...]string {
+	"UNKNOWN COLOR",
+	"Purple",
+	"Sky Blue",
+	"Orange",
+	"Magenta",
+	"Green",
+}
 
 type Game struct {
 	tickNumber       int
@@ -252,7 +260,7 @@ func (g *Game) doCommand(player *Player, commandType string, params json.RawMess
 
 		msg := ""
 		if hintCommand.IsColor {
-			msg = fmt.Sprintf("Hinted C%d to %s", hintCommand.Value, targetPlayer.Name)
+			msg = fmt.Sprintf("Hinted %s to %s", colorNames[hintCommand.Value], targetPlayer.Name)
 		} else {
 			msg = fmt.Sprintf("Hinted %d to %s", hintCommand.Value, targetPlayer.Name)
 		}

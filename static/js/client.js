@@ -35,6 +35,14 @@ window.addEventListener("load", function() {
         $card: null,
     }
     var isRenaming = false
+    var colorNames = [
+        "UNKNOWN COLOR",
+        "Purple",
+        "Sky Blue",
+        "Orange",
+        "Magenta",
+        "Green",
+    ]
 
     // Do first render
     projector.append(document.body, render);
@@ -136,8 +144,8 @@ window.addEventListener("load", function() {
         return h('div.others-command-pallet', {
             styles: styles,
         }, [
-            h('button.cmd-hint-color', {onclick: onCmdHintColor}, [`Hint color (${hoveredOthersCard.card.Color})`]),
-            h('button.cmd-hint-number', {onclick: onCmdHintNumber}, [`Hint number (${hoveredOthersCard.card.Number})`]),
+            h('button.cmd-hint-color', {onclick: onCmdHintColor}, [`Hint ${colorNames[hoveredOthersCard.card.Color]}`]),
+            h('button.cmd-hint-number', {onclick: onCmdHintNumber}, [`Hint ${hoveredOthersCard.card.Number}`]),
         ])
     }
 
