@@ -256,22 +256,22 @@ window.addEventListener("load", function() {
     var ws = new WebSocket(window.args.ws_url);
     ws.binaryType = "arraybuffer"
 
-    ws.onopen = function(e) {
+    ws.onopen = e => {
         status = "WS open"
         projector.scheduleRender()
     }
 
-    ws.onclose = function(e) {
+    ws.onclose = e => {
         status = "WS closed :("
         projector.scheduleRender()
     }
 
-    ws.onmessage = function(e) {
+    ws.onmessage = e => {
         var buffer = new Uint8Array(e.data)
         setNewWorld(msgpack.decode(buffer))
     }
 
-    ws.onerror = function(e) {
+    ws.onerror = e => {
         console.log("WS err: " + e.data);
     }
 
