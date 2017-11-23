@@ -43,6 +43,14 @@ window.addEventListener("load", function() {
         "Magenta",
         "Green",
     ]
+    var colorValues = [
+        "#dddddd",
+        "#6850a1",
+        "#40b9ff",
+        "#ef6f36",
+        "#e70e72",
+        "#1f8e22",
+    ]
 
     // Do first render
     projector.append(document.body, render);
@@ -53,8 +61,10 @@ window.addEventListener("load", function() {
 
     function renderHanabis() {
         return h('div.hanabis',
-            w.SuccessfulPlayedCount.map(
-                (count, idx) => h('div.obj_desk_card', {key: idx, styles: {'background-image': `url("/static/img/spirits/${idx + 1}${count}.png")`}})
+            w.SuccessfulPlayedCount.map((count, idx) =>
+                count > 0 ?
+                    h('div.obj_desk_card', {key: idx, styles: {'background-image': `url("/static/img/spirits/${idx + 1}${count}.png")`}}) :
+                    h('div.obj_desk_card', {key: idx + 100, styles: {'backgroundColor': colorValues[idx + 1], 'opacity': '0.3'}})
             )
         )
     }
