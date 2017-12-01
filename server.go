@@ -32,7 +32,7 @@ func panicIfNotNil(err error) {
 func serveGame(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	w.Header().Set("Content-Type", "text/html")
-	panicIfNotNil(gameTemplate.Execute(w, fmt.Sprintf("ws://%s/game/%s/socket", r.Host, vars["gameId"])))
+	panicIfNotNil(gameTemplate.Execute(w, fmt.Sprintf("/game/%s/socket", vars["gameId"])))
 }
 
 func serveWs(w http.ResponseWriter, r *http.Request) {

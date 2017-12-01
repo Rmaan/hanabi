@@ -307,7 +307,7 @@ window.addEventListener("load", function() {
         projector.scheduleRender()
     }
 
-    var ws = new WebSocket(window.args.ws_url);
+    var ws = new WebSocket("ws://" + location.host + window.args.ws_url);
     ws.binaryType = "arraybuffer"
 
     ws.onopen = e => {
