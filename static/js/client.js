@@ -20,6 +20,7 @@ window.addEventListener("load", function() {
 
     var status = 'Hello!';
     var debug = 'debug bar';
+    var debugEnabled = false;
     // World networked from server
     var w = {
         SuccessfulPlayedCount: [],
@@ -64,7 +65,7 @@ window.addEventListener("load", function() {
             w.SuccessfulPlayedCount.map((count, idx) =>
                 count > 0 ?
                     h('div.obj_desk_card', {key: idx, styles: {'background-image': `url("/static/img/spirits/${idx + 1}${count}.png")`}}) :
-                    h('div.obj_desk_card', {key: idx + 100, styles: {'backgroundColor': colorValues[idx + 1], 'opacity': '0.3'}})
+                    h('div.obj_desk_card', {key: idx + 100, styles: {'backgroundColor': colorValues[idx + 1], 'opacity': '0.6'}})
             )
         )
     }
@@ -175,10 +176,10 @@ window.addEventListener("load", function() {
 
     function render() {
         return h('div.render', [
-            h('div.top-bar', [
+            debugEnabled ? h('div.top-bar', [
                 h('div#debug', [debug]),
                 h('button#btn-dc', {onclick: e => ws.close()}, ['DC'])
-            ]),
+            ]) : null,
             h('div#canvas', [
                 h('div#status', [status]),
                 renderDesk(),

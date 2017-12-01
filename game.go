@@ -14,7 +14,7 @@ import (
 )
 
 const inactivityTickCount = 10 // After this many ticks without commands/join, server will stop broadcasting until another command arrives.
-var colorNames = [...]string {
+var colorNames = [...]string{
 	"UNKNOWN COLOR",
 	"Purple",
 	"Sky Blue",
